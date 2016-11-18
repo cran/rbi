@@ -4,17 +4,21 @@
 \alias{bi_model_insert_lines}
 \title{Insert lines in a libbi model}
 \arguments{
+\item{lines}{vector or line(s)}
+
 \item{before}{line number before which to insert line(s)}
 
 \item{after}{line number after which to insert line(s)}
 
-\item{lines}{vector or line(s)}
+\item{at_beginning_of}{block at the beginning of which to insert lines(s)}
+
+\item{at_end_of}{block at the end of which to insert lines(s)}
 }
 \value{
 the updated bi model
 }
 \description{
-Inserts one or more lines into a libbi model. If one of \code{before} or \code{after} is given, the line(s) will be inserted before or after a given line number, respectively. If neither is given, the line(s) will be added at the end.
+Inserts one or more lines into a libbi model. If one of \code{before} or \code{after} is given, the line(s) will be inserted before or after a given line number or block name, respectively. If one of \code{at_beginning of} or \code{at_end_of} is given, the lines will be inserted at the beginning/end of the block, respectively
 }
 \examples{
 model_file_name <- system.file(package="rbi", "PZ.bi")

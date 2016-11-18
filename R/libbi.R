@@ -7,7 +7,6 @@
 #' Once the instance is created, \code{libbi} can be run through the \code{run}
 #' method documented in \code{\link{libbi_run}}. Note that \code{\link{libbi}} objects can be plotted using \code{\link{plot}} if the \code{rbi.helpers} package is loaded.
 #'
-#' @param client is either "draw", "filter", "sample"... see LibBi documentation.
 #' @param model either a character vector giving the path to a model file (typically ending in ".bi"), or a \code{bi_model} object
 #' @param config path to a configuration file, containing multiple arguments
 #' @param global_options additional arguments to pass to the call to \code{libbi}, on top of the ones in the config file
@@ -74,16 +73,14 @@ libbi <- setRefClass("libbi",
                     path_to_libbi = "character",
                     model = "bi_model",
                     model_file_name = "character",
-                    base_command_string = "character",
+                    working_folder = "character",
+                    dims = "list",
                     command = "character",
                     result = "list",
-                    working_folder = "character",
                     output_file_name = "character",
-                    run_flag = "logical",
-                    dims = "list"),
+                    run_flag = "logical"),
       methods = list(
-        initialize = function(client, model,
-                              config, global_options, path_to_libbi,
+        initialize = function(model, config, global_options, path_to_libbi,
                               working_folder, dims, run = FALSE,
                               overwrite = FALSE, ...){
           result <<- list()
@@ -96,12 +93,6 @@ libbi <- setRefClass("libbi",
           }
           dims <<- libbi_dims
           run_flag <<- FALSE
-          if (missing(client)){
-            print("you didn't provide a 'client' to libbi, it's kinda weird; default to 'sample'.")
-            client <<- "sample"
-          } else {
-            client <<- client
-          }
 
           if (missing(model)) {
             model <<- NULL
@@ -144,37 +135,11 @@ libbi <- setRefClass("libbi",
           else
             global_options <<- option_list(global_options)
 
-          if (missing(path_to_libbi)){
-            if (is.null(getOption("path_to_libbi"))) {
-              # Maybe the system knows where libbi is
-              path_to_libbi <<- Sys.which("libbi")
-            } else {
-              path_to_libbi <<- getOption("path_to_libbi")
-            }
-            if (nchar(.self$path_to_libbi) == 0){
-              stop("Could not locate libbi, please either provide the path to the libbi binary via the 'path_to_libbi' option, or set the PATH to contain the directory that contains the binary in ~/.Renviron or set it in your R session via options(path_to_libbi = \"insert_path_here\")")
-            }
-          } else {
-            path_to_libbi <<- path_to_libbi
-          }
-          if (!grepl("libbi$", .self$path_to_libbi)) {
-            path_to_libbi <<- paste0(.self$path_to_libbi, "/libbi")
-          }
-          if (!file.exists(.self$path_to_libbi)) {
-            stop("Could not find libbi executable ", path_to_libbi)
-          }
-          base_command_string <<- paste(.self$path_to_libbi, .self$client)
+          if (!missing(path_to_libbi)) path_to_libbi <<- path_to_libbi
 
-          dot_options <- list(...)
-          for (option in names(dot_options))
-          {
-              global_options[[option]] <<- dot_options[[option]]
-              dot_options[[option]] <- NULL
-          }
-
-          return(do.call(.self$run, c(list(run_from_init = run), dot_options)))
+          return(do.call(.self$run, c(list(run_from_init = run), list(...))))
         },
-        run = function(add_options, stdoutput_file_name, init, input, obs, time_dim, ...){
+        run = function(client, add_options, stdoutput_file_name, init, input, obs, time_dim, ...){
           "Run libbi"
 
           ## get hidden options 'run_from_init'; if this is passed, 'run' has
@@ -186,11 +151,16 @@ libbi <- setRefClass("libbi",
           if ("run_from_init" %in% names(passed_options)) {
             run_libbi <- passed_options[["run_from_init"]]
             passed_options[["run_from_init"]] <- NULL
-            for (run_option in intersect(names(match.call(expand.dots = FALSE)), names(global_options))) {
-              global_options[[run_option]] <<- NULL
+            for (run_option in names(passed_options)) {
+              global_options[[run_option]] <<- passed_options[[run_option]]
+              passed_options[[run_option]] <- NULL
             }
           } else {
             run_libbi <- TRUE
+          }
+
+          if (!missing(client)){
+            client <<- client
           }
 
           if (missing(add_options)){
@@ -200,7 +170,7 @@ libbi <- setRefClass("libbi",
           }
 
           if (nchar(.self$config) > 0) {
-            config_file_options <- paste(readLines(.self$config), collapse = " ") 
+            config_file_options <- paste(readLines(.self$config), collapse = " ")
           } else {
             config_file_options <- list()
           }
@@ -276,6 +246,10 @@ libbi <- setRefClass("libbi",
 
           if (run_libbi)
           {
+            if (length(.self$client) == 0) {
+              message("No client provided; default to 'sample'.")
+              client <<- "sample"
+            }
             ## re-read options
             options <- option_list(getOption("libbi_args"), config_file_options,
                                    global_options, add_options, file_options, passed_options)
@@ -306,8 +280,29 @@ libbi <- setRefClass("libbi",
               stdoutput_redir_name <- paste(">", stdoutput_file_name, "2>&1")
             }
 
+            if (length(path_to_libbi) == 0) {
+              if (is.null(getOption("path_to_libbi"))) {
+                                        # Maybe the system knows where libbi is
+                path_to_libbi <<- Sys.which("libbi")
+              } else {
+                path_to_libbi <<- getOption("path_to_libbi")
+              }
+              if (nchar(.self$path_to_libbi) == 0){
+                stop("Could not locate libbi, please either provide the path to the libbi binary via the 'path_to_libbi' option, or set the PATH to contain the directory that contains the binary in ~/.Renviron or set it in your R session via options(path_to_libbi = \"insert_path_here\")")
+              }
+            } else {
+              path_to_libbi <<- path_to_libbi
+            }
+            if (!grepl("libbi$", .self$path_to_libbi)) {
+              path_to_libbi <<- paste0(.self$path_to_libbi, "/libbi")
+            }
+            if (!file.exists(.self$path_to_libbi)) {
+              stop("Could not find libbi executable ", path_to_libbi)
+            }
+            base_command_string <- paste(.self$path_to_libbi, .self$client)
+
             cdcommand <- paste("cd", .self$working_folder)
-            launchcommand <- paste(.self$base_command_string, opt_string)
+            launchcommand <- paste(base_command_string, opt_string)
             if (verbose) print("Launching LibBi with the following commands:")
             if (verbose)
               print(paste(c(cdcommand, launchcommand, stdoutput_redir_name),
@@ -323,7 +318,8 @@ libbi <- setRefClass("libbi",
             if (verbose) print("... LibBi has finished!")
             libbi_result <-
               list(output_file_name = .self$output_file_name,
-                   command = launchcommand)
+                   command = launchcommand,
+                   options = options)
             if (nchar(.self$model_file_name) > 0){
               libbi_result["model_file_name"] = .self$model_file_name
             }
@@ -334,23 +330,48 @@ libbi <- setRefClass("libbi",
             result <<- libbi_result
           }
         },
-        clone = function(model, ...) {
+        clone = function(client, config, global_options, path_to_libbi, model, working_folder, dims, ...) {
           "Clone a libbi object"
+
+          new_libbi_options <- list()
+
+          if (missing(client)) {
+            new_libbi_options[["client"]] <- .self$client
+          } else {
+            new_libbi_options[["client"]] <- client
+          }
+          if (missing(config)) {
+            new_libbi_options[["config"]] <- .self$config
+          } else {
+            new_libbi_options[["config"]] <- config
+          }
+          if (missing(global_options)) {
+            new_libbi_options[["global_options"]] <- .self$global_options
+          } else {
+            new_libbi_options[["global_options"]] <- global_options
+          }
+          if (missing(path_to_libbi)) {
+            new_libbi_options[["path_to_libbi"]] <- .self$path_to_libbi
+          } else {
+            new_libbi_options[["path_to_libbi"]] <- path_to_libbi
+          }
           if (missing(model)) {
-            new_model <- .self$model$clone()
-          } else
-          {
-            new_model <- model
+            new_libbi_options[["model"]] <- .self$model$clone()
+          } else {
+            new_libbi_options[["model"]] <- model
+          }
+          if (missing(working_folder)) {
+            new_libbi_options[["working_folder"]] <- .self$working_folder
+          } else {
+            new_libbi_options[["working_folder"]] <- working_folder
+          }
+          if (missing(dims)) {
+            new_libbi_options[["dims"]] <- .self$dims
+          } else {
+            new_libbi_options[["dims"]] <- dims
           }
 
-          new_wrapper <- libbi(client = .self$client,
-                               model = new_model,
-                               config = .self$config,
-                               global_options = .self$global_options,
-                               path_to_libbi = .self$path_to_libbi,
-                               working_folder = .self$working_folder,
-                               ...)
-          new_wrapper$dims = .self$dims
+          new_wrapper <- do.call(libbi, c(new_libbi_options, list(...)))
           return(new_wrapper)
         },
         show = function(){
@@ -358,11 +379,9 @@ libbi <- setRefClass("libbi",
           cat("* client: ", .self$client, "\n")
           cat("* path to working folder:", .self$working_folder, "\n")
           cat("* path to model file:", .self$model_file_name, "\n")
-          if (class(.self$output_file_name) != "uninitializedField") {
+          if (length(.self$output_file_name) > 0) {
             cat("* path to output_file:", .self$output_file_name, "\n")
           }
         }
       )
       )
-
-

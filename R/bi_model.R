@@ -5,7 +5,7 @@
 #' \code{bi_model} creates a model object for \code{Rbi} from a libbi file.
 #' Once the instance is created, the model can either be fed to a \code{\link{libbi}}
 #' object.
-#' 
+#'
 #' @param filename is the file name of the model file
 #' @importFrom methods new
 #' @examples
@@ -13,7 +13,7 @@
 #' PZ <- bi_model(filename = model_file_name)
 #' @seealso \code{\link{bi_model_fix}}, \code{\link{bi_model_propose_prior}}, \code{\link{bi_model_get_lines}}, \code{\link{bi_model_insert_lines}}, \code{\link{bi_model_update_lines}}, \code{\link{bi_model_remove_lines}}, \code{\link{bi_model_set_name}}, \code{\link{bi_model_write_model_file}}, \code{\link{bi_model_clone}}
 #' @export bi_model
-NULL 
+NULL
 #' @rdname bi_model_fix
 #' @name bi_model_fix
 #' @title Fix noise term, state or parameter of a libbi model
@@ -27,7 +27,7 @@ NULL
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$fix(alpha = 0)
-NULL 
+NULL
 #' @rdname bi_model_propose_prior
 #' @name bi_model_propose_prior
 #' @title Propose from the prior in a libbi model
@@ -40,7 +40,7 @@ NULL
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$propose_prior()
-NULL 
+NULL
 #' @rdname bi_model_get_lines
 #' @name bi_model_get_lines
 #' @title Get lines in a libbi model
@@ -54,23 +54,25 @@ NULL
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$get_lines()
-NULL 
+NULL
 #' @rdname bi_model_insert_lines
 #' @name bi_model_insert_lines
 #' @title Insert lines in a libbi model
 #' @description
-#' Inserts one or more lines into a libbi model. If one of \code{before} or \code{after} is given, the line(s) will be inserted before or after a given line number, respectively. If neither is given, the line(s) will be added at the end.
+#' Inserts one or more lines into a libbi model. If one of \code{before} or \code{after} is given, the line(s) will be inserted before or after a given line number or block name, respectively. If one of \code{at_beginning of} or \code{at_end_of} is given, the lines will be inserted at the beginning/end of the block, respectively
 #'
+#' @param lines vector or line(s)
 #' @param before line number before which to insert line(s)
 #' @param after line number after which to insert line(s)
-#' @param lines vector or line(s)
+#' @param at_beginning_of block at the beginning of which to insert lines(s)
+#' @param at_end_of block at the end of which to insert lines(s)
 #' @return the updated bi model
 #' @seealso \code{\link{bi_model}}
 #' @examples
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$insert_lines(lines = "noise beta", after = 8)
-NULL 
+NULL
 #' @rdname bi_model_update_lines
 #' @name bi_model_update_lines
 #' @title Update line(s) in a libbi model
@@ -85,7 +87,7 @@ NULL
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$update_lines(23, "alpha ~ normal(mu, sigma)")
-NULL 
+NULL
 #' @rdname bi_model_remove_lines
 #' @name bi_model_remove_lines
 #' @title Remove line(s) in a libbi model
@@ -99,7 +101,7 @@ NULL
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$remove_lines(2)
-NULL 
+NULL
 #' @rdname bi_model_set_name
 #' @name bi_model_set_name
 #' @title Set the name of a bi model
@@ -127,7 +129,7 @@ NULL
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$write_model_file("PZ")
-NULL 
+NULL
 #' @rdname bi_model_clone
 #' @name bi_model_clone
 #' @title Clones a model (returning a new object with the same properties)
@@ -139,7 +141,7 @@ NULL
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ2 <- PZ$clone()
-NULL 
+NULL
 
 
 bi_model <- setRefClass("bi_model",
@@ -319,18 +321,40 @@ bi_model <- setRefClass("bi_model",
           }
           return(lines)
         },
-        insert_lines = function(lines, before, after) {
+        insert_lines = function(lines, before, after, at_beginning_of, at_end_of) {
           "Insert lines in a libbi model"
-          if (!missing(before)) {
-            if (!missing(after)) {
-              stop("Must give at most one of 'before' or 'after'")
-            } else {
+          args <- match.call()
+          arg_name <- setdiff(names(args), c("", "lines"))
+          if (length(arg_name) != 1) {
+            stop("insert_lines needs exactly two arguments, 'lines' and one of 'before', 'after', 'at_beginning_of' or 'at_end_of'")
+          }
+          arg <- args[[arg_name]]
+          if (is.numeric(arg)) arg <- as.integer(arg)
+
+          if (arg_name %in% c("before", "after") && is.integer(arg)) {
+            if (arg_name == "before") {
               after <- before - 1
             }
-          }
-
-          if (after > length(model)) {
-            stop("model only has ", length(model), " lines, higher requested.")
+            if (after > length(model)) {
+              stop("model only has ", length(model), " lines, higher requested.")
+            }
+          } else {
+            block_lines <- .self$find_block(arg)
+            if (length(block_lines) > 0) {
+              if (arg_name == "before") {
+                after <- block_lines[1] - 1
+              } else if (arg_name == "after") {
+                after <- block_lines[length(block_lines)]
+              } else if (arg_name == "at_beginning_of") {
+                after <- block_lines[1]
+              } else if (arg_name == "at_end_of") {
+                after <- block_lines[length(block_lines)] - 1
+              } else {
+                stop("Unknown argument: ", arg_name)
+              }
+            } else {
+              stop("Could not find block ", arg)
+            }
           }
 
           if (after == 0) {
@@ -340,9 +364,8 @@ bi_model <- setRefClass("bi_model",
           } else {
             model <<- c(model[1:after], lines, model[(after+1):length(model)])
           }
-
           clean_model()
-        }, 
+        },
         update_lines = function(num, lines) {
           "Update lines in a libbi model"
           model[num] <<- lines
@@ -387,13 +410,10 @@ bi_model <- setRefClass("bi_model",
         },
         find_block = function(name) {
           lines <- .self$model
-          sub_line <-
-            grep(paste0("[[:space:]]*sub[[:space:]]+", name, "[[:space:]]*\\{"),
-                 lines)
+          sub_regexp <- paste0("^[[:space:]]*(sub[[:space:]]+)?[[:space:]]*", name, "[[:space:]]*\\{")
+          sub_line <- grep(sub_regexp, lines)
           if (length(sub_line) == 1) {
-            lines[sub_line] <- sub(paste0("[[:space:]]*sub[[:space:]]+", name,
-                                          "[[:space:]]*\\{"), "", 
-                                   lines[sub_line])
+            lines[sub_line] <- sub(sub_regexp, "", lines[sub_line])
             open_braces <- 1
             line <- sub_line - 1
             while(open_braces > 0) {
@@ -406,7 +426,7 @@ bi_model <- setRefClass("bi_model",
           } else {
             return(integer(0))
           }
-        }, 
+        },
         get_block = function(name) {
           block <- .self$find_block(name)
           if (length(block) > 0) {
@@ -423,7 +443,7 @@ bi_model <- setRefClass("bi_model",
           } else {
             return(NA)
           }
-        }, 
+        },
         remove_block = function(name) {
           block <- find_block(name)
           if (length(block) > 0) {
