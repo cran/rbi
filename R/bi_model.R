@@ -11,7 +11,7 @@
 #' @examples
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
-#' @seealso \code{\link{bi_model_fix}}, \code{\link{bi_model_propose_prior}}, \code{\link{bi_model_get_lines}}, \code{\link{bi_model_insert_lines}}, \code{\link{bi_model_update_lines}}, \code{\link{bi_model_remove_lines}}, \code{\link{bi_model_set_name}}, \code{\link{bi_model_write_model_file}}, \code{\link{bi_model_clone}}
+#' @seealso \code{\link{bi_model_fix}}, \code{\link{bi_model_propose_prior}}, \code{\link{bi_model_get_lines}}, \code{\link{bi_model_insert_lines}}, \code{\link{bi_model_update_lines}}, \code{\link{bi_model_remove_lines}}, \code{\link{bi_model_set_name}}, \code{\link{bi_model_write}}, \code{\link{bi_model_clone}}
 #' @export bi_model
 NULL
 #' @rdname bi_model_fix
@@ -102,6 +102,21 @@ NULL
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$remove_lines(2)
 NULL
+#' @rdname bi_model_replace_all
+#' @name bi_model_replace_all
+#' @title replace all instances of one string with another
+#' @description
+#' Replace all instances of one string with another in a libbi model
+#'
+#' @param old the string to be replaced
+#' @param new the string to replace the old string
+#' @return the updated bi model
+#' @seealso \code{\link{bi_model}}
+#' @examples
+#' model_file_name <- system.file(package="rbi", "PZ.bi")
+#' PZ <- bi_model(filename = model_file_name)
+#' PZ$replace_all("alpha", "beta")
+NULL
 #' @rdname bi_model_set_name
 #' @name bi_model_set_name
 #' @title Set the name of a bi model
@@ -116,8 +131,8 @@ NULL
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ$set_name("new_PZ")
 NULL
-#' @rdname bi_model_write_model_file
-#' @name bi_model_write_model_file
+#' @rdname bi_model_write
+#' @name bi_model_write
 #' @title Writes a bi model to a file.
 #' @description
 #' Writes a bi model to a file given by \code{filename}. The extension '.bi' will be added if necessary.
@@ -128,7 +143,7 @@ NULL
 #' @examples
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
-#' PZ$write_model_file("PZ")
+#' PZ$write("PZ")
 NULL
 #' @rdname bi_model_clone
 #' @name bi_model_clone
@@ -142,7 +157,6 @@ NULL
 #' PZ <- bi_model(filename = model_file_name)
 #' PZ2 <- PZ$clone()
 NULL
-
 
 bi_model <- setRefClass("bi_model",
       fields = list(model = "character",
@@ -177,13 +191,14 @@ bi_model <- setRefClass("bi_model",
 
             ## variables that are to be fixed
             var_str <-
-                paste0("^[[:space:]]*(noise|param|state|const)[[:space:]]+(",
+                paste0("^[[:space:]]*(noise|param|state|input|const)[[:space:]]+(",
                        paste(names(fixed), collapse = "|"), ")([[:space:][]|$)")
             var_line_nbs <- grep(var_str, fix_model)
 
             var_vec <- c(.self$get_vars("noise"),
                          .self$get_vars("param"),
                          .self$get_vars("state"),
+                         .self$get_vars("input"),
                          .self$get_vars("const"))
 
             unmatched_names <- setdiff(names(fixed), var_vec)
@@ -202,7 +217,7 @@ bi_model <- setRefClass("bi_model",
                     first_const_line <- var_line_nbs[1]
                 } else
                 {
-                    first_const_line <- grep("^[[:space:]]*(noise|param|state|const)[[:space:]]+", fix_model)[1]
+                    first_const_line <- grep("^[[:space:]]*(noise|param|state|input|const)[[:space:]]+", fix_model)[1]
                 }
                 fix_model <-
                     c(fix_model[1:(first_const_line - 1)],
@@ -245,6 +260,21 @@ bi_model <- setRefClass("bi_model",
 
           prior_initial <- new_model$get_block("initial")
           new_model$add_block("proposal_initial", lines = prior_initial)
+
+          return(new_model)
+        },
+        obs_to_noise = function() {
+          "Copy obs variables to state variables (with '__sample_' prepended)"
+
+          new_model <- bi_model(lines = .self$model)
+          obs_block <- get_block("observation")
+          obs_variables <- get_vars("obs")
+
+          obs_var_pattern <- paste0("^(", paste(obs_variables, collapse = "|"), ")")
+          state_block <- sub(obs_var_pattern, "__sample_\\1", obs_block)
+          new_model$insert_lines(state_block, at_end_of = "transition")
+          state_variables <- paste0("__sample_", obs_variables)
+          new_model$insert_lines(paste("noise ", paste(state_variables, collapse = ", ")), after = 1)
 
           return(new_model)
         },
@@ -328,7 +358,7 @@ bi_model <- setRefClass("bi_model",
           if (length(arg_name) != 1) {
             stop("insert_lines needs exactly two arguments, 'lines' and one of 'before', 'after', 'at_beginning_of' or 'at_end_of'")
           }
-          arg <- args[[arg_name]]
+          arg <- get(arg_name)
           if (is.numeric(arg)) arg <- as.integer(arg)
 
           if (arg_name %in% c("before", "after") && is.integer(arg)) {
@@ -383,6 +413,11 @@ bi_model <- setRefClass("bi_model",
             clean_model()
           }
         },
+        replace_all = function(old, new) {
+          "Replace all instances of a string with another in a libbi model"
+          model <<- gsub(old, new, model)
+          clean_model()
+        },
         set_name = function(name) {
           "Set model name"
           if (length(model) > 0) {
@@ -398,8 +433,12 @@ bi_model <- setRefClass("bi_model",
                         "}")
           }
           clean_model()
-        }, 
+        },
         write_model_file = function(filename) {
+          stop("'write_model_file' is deprecated and will be removed in version 0.7. Use 'write'.")
+          .self$write(filename)
+        },
+        write = function(filename) {
           "Write model to file"
           if (!grepl("\\.bi$", filename)) {
             filename <- paste(filename, "bi", sep = ".")
@@ -410,7 +449,7 @@ bi_model <- setRefClass("bi_model",
         },
         find_block = function(name) {
           lines <- .self$model
-          sub_regexp <- paste0("^[[:space:]]*(sub[[:space:]]+)?[[:space:]]*", name, "[[:space:]]*\\{")
+          sub_regexp <- paste0("^[[:space:]]*(sub[[:space:]]+)?[[:space:]]*", name, "[[:space:]]*(\\(.*\\))?[[:space:]]*\\{")
           sub_line <- grep(sub_regexp, lines)
           if (length(sub_line) == 1) {
             lines[sub_line] <- sub(sub_regexp, "", lines[sub_line])
@@ -419,7 +458,6 @@ bi_model <- setRefClass("bi_model",
             while(open_braces > 0) {
               line <- line + 1
               braces <- grep("[\\{\\}]", lines[line], value = TRUE)
-              line_brace <- 1
               open_braces <- open_braces + nchar(gsub("\\}", "", lines[line])) - nchar(gsub("\\{", "", lines[line]))
             }
             return(sub_line:line)
@@ -432,8 +470,7 @@ bi_model <- setRefClass("bi_model",
           if (length(block) > 0) {
             lines <- .self$model[block]
             lines[1] <-
-              sub(paste0("^[[:space:]]*sub[[:space:]]+", name, "[[:space:]]*\\{"),
-                  "", lines[1])
+              sub(paste0("^[[:space:]]*(sub[[:space:]]+)?", name, "[[:space:]]*\\{"), "", lines[1])
             lines[length(lines)] <- sub("\\}[[:space:]]*$", "", lines[length(lines)])
             empty_lines <- grep("^[[:space:]]*$", lines)
             if (length(empty_lines) > 0) {
@@ -477,7 +514,7 @@ bi_model <- setRefClass("bi_model",
               names <- sub("=.*$", "", names)
             }
             ## remove spaces
-            names <- sub("[[:space:]]", "", names)
+            names <- gsub("[[:space:]]", "", names)
             names_vec <- unlist(strsplit(names, ","))
             return(names_vec)
           } else {
@@ -505,3 +542,36 @@ bi_model <- setRefClass("bi_model",
         }
       )
 )
+
+#' @name `[`
+#' @title Subset of model lines
+#' @description
+#' Extracts a subset of lines from the model
+#' @examples
+#' model_file_name <- system.file(package="rbi", "PZ.bi")
+#' PZ <- bi_model(filename = model_file_name)
+#' PZ[3:5]
+#' @export
+#' @param x A bi_model
+#' @param i A vector of line numbers
+`[.bi_model` = function(x, i) {
+  x$get_lines()[i]
+}
+
+#' @name `[<-`
+#' @title Subset assignment to mode lines
+#' @description
+#' Assigns new character strings a subset of lines from the model
+#' @examples
+#' model_file_name <- system.file(package="rbi", "PZ.bi")
+#' PZ <- bi_model(filename = model_file_name)
+#' PZ[3:4] <- c("const e = 0.4", "const m_l = 0.05")
+#' @export
+#' @param x A bi_model
+#' @param i A vector of line numbers
+#' @param value A vector of the same length as \code{i}, containing the
+#'   replacement strings 
+`[<-.bi_model` = function(x, i, value) {
+  x$update_lines(i, value)
+  x
+}

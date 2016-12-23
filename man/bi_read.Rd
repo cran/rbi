@@ -4,8 +4,7 @@
 \alias{bi_read}
 \title{Bi Read}
 \usage{
-bi_read(read, vars, dims, missval.threshold, time_name, coord_name, vector,
-  thin, verbose)
+bi_read(read, vars, dims, missval.threshold, coord_name, vector, thin, verbose)
 }
 \arguments{
 \item{read}{either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output}
@@ -15,8 +14,6 @@ bi_read(read, vars, dims, missval.threshold, time_name, coord_name, vector,
 \item{dims}{factors for dimensions}
 
 \item{missval.threshold}{upper threshold for the likelihood}
-
-\item{time_name}{name of time dimension (if any)}
 
 \item{coord_name}{name of coord dimension (if any)}
 
@@ -34,5 +31,9 @@ This function reads all variable from a NetCDF file or the output of a
 \code{\link{libbi}} object.
 The file can be specified as a string to the filepath, in which
 case a NetCDF connection is opened, or directly as a NetCDF connection.
+}
+\examples{
+example_output_file <- system.file(package="rbi", "example_output.nc")
+d <- bi_read(example_output_file)
 }
 

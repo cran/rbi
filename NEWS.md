@@ -1,9 +1,22 @@
+# rbi 0.6.0
+
+* `bi_contents` to quickly get the variables in an NetCDF file
+* `generate_seed` to generate a seed for a `libbi` run
+* new `sample_obs` option to `libbi$run`, to sample posterior observations
+* improved option handling; there is now only one 'options' option
+* overloaded subset operators in `bi_model`
+* no more `result` field in the `libbi` object
+* new vignette: Introduction to rbi
+* Fixed bug in `bi_model$get_vars` that didn't remove all spaces
+* Fixed bug in reading in the coord dimension(s) in `bi_read`
+* Fixed bug in `bi_model$fix` that ignored input variables
+
 # rbi 0.5.0
 
-* "client" is now an option to libbi$run
-* Fix bug in parsing options in libbi$initialize
-* Fix bug in get_traces if there is only one sample
-* bi_model$insert_lines can now work with blocks
+* `client` is now an option to `libbi$run`
+* Fix bug in parsing options in `libbi$initialize`
+* Fix bug in `get_traces` if there is only one sample
+* `bi_model$insert_lines` can now work with blocks
 * Improve cloning, where all initialising parameters can now be passed
 
 # rbi 0.4.1

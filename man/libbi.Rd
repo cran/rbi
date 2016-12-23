@@ -8,7 +8,9 @@
 
 \item{config}{path to a configuration file, containing multiple arguments}
 
-\item{global_options}{additional arguments to pass to the call to \code{libbi}, on top of the ones in the config file}
+\item{options}{list of additional arguments to pass to the call to \code{libbi}}
+
+\item{global_options}{deprecated, replaced by \code{options}}
 
 \item{working_folder}{path to a folder from which to run \code{libbi}; default to a temporary folder.}
 
@@ -33,7 +35,7 @@ method documented in \code{\link{libbi_run}}. Note that \code{\link{libbi}} obje
 \examples{
 bi_object <- libbi$new(client = "sample",
                        model = system.file(package="rbi", "PZ.bi"),
-                       global_options = list(sampler = "smc2"))
+                       options = list(sampler = "smc2"))
 }
 \seealso{
 \code{\link{libbi_run}}, \code{\link{libbi_clone}}

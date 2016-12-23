@@ -4,9 +4,11 @@
 \alias{libbi_run}
 \title{Using the LibBi wrapper to launch LibBi}
 \arguments{
-\item{add_options}{additional arguments to pass to the call to \code{libbi}}
+\item{options}{list of additional arguments to pass to the call to \code{libbi}}
 
-\item{stdoutput_file_name}{path to a file to text file to report the output of \code{libbi}}
+\item{add_options}{deprecated, replaced by \code{options}}
+
+\item{log_file_name}{path to a file to text file to report the output of \code{libbi}}
 
 \item{init}{initialisation of the model, either supplied as a list of values and/or data frames, or a (netcdf) file name, or a \code{\link{libbi}} object which has been run (in which case the output of that run is used as input)}
 
@@ -16,7 +18,7 @@
 
 \item{time_dim}{The time dimension in any R objects that have been passed (\code{init}, \code{input}) and \code{obs}); if not given, will be guessed}
 
-\item{...}{any onrecognised options will be added to \code{add_options}}
+\item{...}{any unrecognised options will be added to \code{options}}
 }
 \description{
 The method \code{run} of an instance of \code{\link{libbi}}
@@ -26,10 +28,10 @@ arguments.
 \examples{
 bi_object <- libbi$new(client = "sample",
                        model = system.file(package="rbi", "PZ.bi"),
-                       global_options = list(sampler = "smc2"))
-\dontrun{bi_object$run(add_options=list(nthreads = 1), verbose = TRUE)}
-if (length(bi_object$result) > 0) {
-  bi_file_summary(bi_object$result$output_file_name)
+                       options = list(sampler = "smc2"))
+\dontrun{bi_object$run(options=list(nthreads = 1), verbose = TRUE)}
+if (bi_object$run_flag) {
+  bi_file_summary(bi_object$output_file_name)
 }
 }
 \seealso{
