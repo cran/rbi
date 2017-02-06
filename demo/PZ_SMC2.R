@@ -1,8 +1,3 @@
-rm(list = ls(all.names=TRUE))
-unlink(".RData")
-try(detach(package:rbi, unload = TRUE), silent = TRUE)
-library(rbi, quietly = TRUE)
-
 # the PZ model file is included in rbi and can be found there:
 model_file_name <- system.file(package="rbi", "PZ.bi")
 
@@ -15,20 +10,32 @@ T <- 50
 
 init_parameters <- list(P = 2, Z = 2, mu = 0.5, sigma = 0.3)
 # First let's generate a dataset from the model
-synthetic_dataset <- bi_generate_dataset(end_time=T, model=PZ,
+synthetic_dataset <- bi_generate_dataset(end_time=T, noutputs=T,
+                                         model=PZ,
                                          init = init_parameters)
 
 # Settings
-bi_object <- libbi$new(client="sample", model=PZ, sampler = "smc2")
-print(bi_object)
+bi_object <- libbi(model=PZ, sampler = "smc2")
+# have a look at the object
+bi_object
 
 # Once happy with the settings, launch bi.
-bi_object$run(end_time = T, noutputs = T, nsamples = 128, nparticles = 128, nthreads = 1, obs = synthetic_dataset, init = init_parameters, log_file_name = tempfile(pattern="smc2output", fileext=".txt"))
+bi_object <- sample(bi_object, end_time = T, noutputs = T, nsamples = 128, nparticles = 128, nthreads = 1, obs = synthetic_dataset, init = init_parameters, log_file_name = tempfile(pattern="smc2output", fileext=".txt"))
 # It can be a good idea to look at the result file
 bi_file_summary(bi_object$output_file_name)
+# look at the object again
+bi_object
+# print summary
+summary(bi_object)
 # Have a look at the posterior distribution
 output <- bi_read(bi_object, vars=c("logweight", "mu", "sigma"))
 logweight <- output$logweight$value
+
+log2normw <- function(lw){
+  w <- exp(lw - max(lw))
+  return(w / sum(w))
+}
+
 weight <- log2normw(logweight)
 mu <- output$mu$value
 sigma <- output$sigma$value

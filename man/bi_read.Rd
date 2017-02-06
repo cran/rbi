@@ -4,14 +4,19 @@
 \alias{bi_read}
 \title{Bi Read}
 \usage{
-bi_read(read, vars, dims, missval.threshold, coord_name, vector, thin, verbose)
+bi_read(x, vars, dims, model, type, missval.threshold, coord_name, vector, thin,
+  verbose, clear_cache)
 }
 \arguments{
-\item{read}{either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output}
+\item{x}{either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output}
 
 \item{vars}{variables to read; if not given, all will be read}
 
 \item{dims}{factors for dimensions}
+
+\item{model}{model file or a \code{bi_model} object (if \code{x} is not a \code{libbi} object)}
+
+\item{type}{vector of types of variable to read (out of "param", "state", "noise", "obs"). This needs 'x' to be a \code{\link{libbi}} object or \code{model} to be specified}
 
 \item{missval.threshold}{upper threshold for the likelihood}
 
@@ -22,6 +27,8 @@ bi_read(read, vars, dims, missval.threshold, coord_name, vector, thin, verbose)
 \item{thin}{thinning (keep only 1/thin of samples)}
 
 \item{verbose}{if TRUE, will print variables as they are read}
+
+\item{clear_cache}{if TRUE, will clear the cache and re-read the file even if cached data exists}
 }
 \value{
 list of results

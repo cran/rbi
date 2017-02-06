@@ -35,13 +35,13 @@ option_list <- function(...){
         return(ret)
       })
 
-      option_names <- gsub("_", "-", sapply(string_list, names))
+      option_names <- gsub("_", "-", vapply(string_list, names, ""))
       string_list <- lapply(string_list, function(x) unname(x))
 
       options[option_names] <- string_list
     } else if (is.list(string)) {
       names(string) <- gsub("_", "-", names(string))
-      options[names(string)] <- string
+      for (name in names(string)) options[name] <- string[[name]]
     } else {
       stop("arguments to 'option_list' must be lists or character vectors")
     }

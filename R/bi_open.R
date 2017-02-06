@@ -6,22 +6,20 @@
 #' The file can be specified as a string to the filepath, in which
 #' case a NetCDF connection is opened, or directly as a NetCDF connection.
 #' 
-#' @param read either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output
+#' @param x either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output
 #' @return open NetCDF connection
 #' @importFrom ncdf4 nc_open
-bi_open <- function(read)
+bi_open <- function(x)
 {
-  if (typeof(read) == "character"){
-    nc <- nc_open(tools::file_path_as_absolute(read))
-  } else if (class(read) == "ncdf4") {
-    nc <- read
-  } else if (class(read) == "libbi"){
-    if (!read$run_flag) {
-      stop("The libbi object should be run first")
-    }
-    nc <- nc_open(tools::file_path_as_absolute(read$output_file_name))
+  if (typeof(x) == "character"){
+    nc <- nc_open(tools::file_path_as_absolute(x))
+  } else if (class(x) == "ncdf4") {
+    nc <- x
+  } else if (class(x) == "libbi"){
+    assert_output(x)
+    nc <- nc_open(x$output_file_name)
   } else {
-    stop("'read' must be a string, ncdf4 or libbi object.")
+    stop("'read' must be a string or ncdf4.")
   }
 
   return(nc)

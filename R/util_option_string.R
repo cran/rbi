@@ -21,7 +21,7 @@ option_string <- function(...){
     }
   }
 
-  string <- paste(paste(sapply(names(list_options),
+  string <- paste(paste(vapply(names(list_options),
                          function(option) {
                            if (is.logical(list_options[[option]])) {
                              if (option == "verbose") {
@@ -29,18 +29,21 @@ option_string <- function(...){
                              } else {
                                if (list_options[[option]] == TRUE)
                                  paste0("--enable-", option)
-                               else  
+                               else
                                  paste0("--disable-", option)
                              }
                            } else if (option == "dry") {
                              paste0("--dry-", list_options[[option]])
+                           } else if (option %in% c("with", "without")) {
+                             paste0("--", option, "-", list_options[[option]],
+                                    collapse=" ")
                            } else {
                              paste0("--", option, " ",
                                     format(list_options[[option]],
                                            scientific = FALSE))
                            }
-                         }
-                         ), collapse = " "), string)
+                         },
+                         ""), collapse = " "), string)
 
 
   return(string)

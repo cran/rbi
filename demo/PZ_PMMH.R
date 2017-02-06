@@ -1,10 +1,5 @@
 ### This demo shows how to perform filtering on a simple 
 ### synthetic dataset using libbi.
-rm(list = ls(all.names=TRUE))
-unlink(".RData")
-try(detach(package:rbi, unload = TRUE), silent = TRUE)
-library(rbi, quietly = TRUE)
-
 # the PZ model file is included in rbi and can be found there:
 model_file_name <- system.file(package="rbi", "PZ.bi")
 
@@ -17,19 +12,23 @@ T <- 50
 
 init_parameters <- list(P = 2, Z = 2, mu = 0.5, sigma = 0.3)
 # First let's generate a dataset from the model
-synthetic_dataset <- bi_generate_dataset(end_time=T, model=PZ,
+synthetic_dataset <- bi_generate_dataset(end_time=T, model=PZ, noutputs=T, 
                                          init=init_parameters)
 # Settings
-bi_object <- libbi(client="sample",
-                   model=PZ,
-                   obs=synthetic_dataset,
-                   init=init_parameters)
-print(bi_object)
+bi_object <- libbi(model=PZ)
+# look at the object
+bi_object
 
-# Once happy with the settings, launch bi.
-bi_object$run(end_time=T, noutputs=T, nsamples=128, nparticles=128, nthreads=1, log_file_name=tempfile(pattern="pmmhoutput", fileext=".txt"))
+# launch libbi.
+bi_object <- sample(bi_object, obs=synthetic_dataset, init=init_parameters,
+                    end_time=T, noutputs=T, nsamples=128, nparticles=128,
+                    nthreads=1, log_file_name=tempfile(pattern="pmmhoutput", fileext=".txt"))
 # It can be a good idea to look at the result file
 bi_file_summary(bi_object$output_file_name)
+# look at the object again
+bi_object
+# print summary
+summary(bi_object)
 # Have a look at the posterior distribution
 output <- bi_read(bi_object, c("mu", "sigma"))
 mu <- output$mu$value

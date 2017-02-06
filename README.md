@@ -1,7 +1,9 @@
 Bayesian inference for state-space models with R
 =============
 
-[RBi] (https://github.com/libbi/RBi) is an `R` interface to [libbi] (http://libbi.org), a library for Bayesian inference.
+[![Build Status](https://travis-ci.org/libbi/RBi.svg?branch=master)](https://travis-ci.org/libbi/RBi) [![codecov](https://codecov.io/github/libbi/RBi/branch/master/graphs/badge.svg)](https://codecov.io/github/libbi/RBi) 
+
+[RBi](https://github.com/libbi/rbi) is an `R` interface to [libbi](http://libbi.org), a library for Bayesian inference.
 
 It mainly contains:
 - various functions to retrieve and process the results from libbi (which are in NetCDF format)
@@ -54,6 +56,8 @@ A good starting point is to look at the included demos:
  demo(PZ_SMC2)             ## SMC^2
  demo(PZ_filtering)        ## filtering
 ```
+
+For further information, have a look at the introductory vignette from the link from the [rbi CRAN package](https://CRAN.R-project.org/package=rbi).
 
 Using coda
 ==========
