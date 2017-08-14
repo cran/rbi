@@ -4,10 +4,12 @@
 \alias{bi_open}
 \title{Bi open}
 \usage{
-bi_open(x)
+bi_open(x, file = "output")
 }
 \arguments{
 \item{x}{either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output}
+
+\item{file}{file to open (out of "input", "init", "obs", "output"), if \code{x} is given as a \code{libbi} object; by default, will read output file}
 }
 \value{
 open NetCDF connection
@@ -17,4 +19,3 @@ This function opens an NetCDF file
 The file can be specified as a string to the filepath, in which
 case a NetCDF connection is opened, or directly as a NetCDF connection.
 }
-

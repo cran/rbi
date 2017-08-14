@@ -5,12 +5,14 @@
 \alias{remove_lines.bi_model}
 \title{Remove line(s) and/or block(s) in a libbi model}
 \usage{
-\method{remove_lines}{bi_model}(x, what, ...)
+\method{remove_lines}{bi_model}(x, what, only, ...)
 }
 \arguments{
 \item{x}{a \code{\link{bi_model}} object}
 
 \item{what}{either a vector of line number(s) to remove, or a vector of blocks to remove (e.g., "parameter")}
+
+\item{only}{only remove lines assigning given names (as a vector of character strings)}
 
 \item{...}{ignored}
 }
@@ -28,4 +30,3 @@ PZ <- remove_lines(PZ, 2)
 \seealso{
 \code{\link{bi_model}}
 }
-

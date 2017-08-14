@@ -18,18 +18,23 @@
 #' @param thin thinning (keep only 1/thin of samples)
 #' @param verbose if TRUE, will print variables as they are read
 #' @param clear_cache if TRUE, will clear the cache and re-read the file even if cached data exists
+#' @param init.to.param logical; if TRUE, convert states to initial values
 #' @return list of results
-#' @importFrom ncdf4 nc_close
+#' @inheritParams bi_open
+#' @importFrom ncdf4 nc_close ncvar_get
 #' @importFrom data.table setkeyv setnames setDF is.data.table
-#' @importFrom reshape2 melt
 #' @importFrom utils setTxtProgressBar txtProgressBar
 #' @examples
 #' example_output_file <- system.file(package="rbi", "example_output.nc")
 #' d <- bi_read(example_output_file)
 #' @export
-bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, vector, thin, verbose, clear_cache)
+bi_read <- function(x, vars, dims, model, type, file, missval.threshold, coord_name, vector, thin, verbose, clear_cache, init.to.param=FALSE)
 {
-  nc <- bi_open(x)
+  if (missing(file)) {
+    nc <- bi_open(x)
+  } else {
+    nc <- bi_open(x, file)
+  }
   res <- list()
 
   thin <-
@@ -42,7 +47,7 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
     } else {
       stop("'model' should not be given if 'data' is a 'libbi' object'.")
     }
-    if (missing(dims)) {
+    if (missing(dims) || is.null(dims)) {
       dims <- x$dims
     } else {
       warning("Given 'dims' will overwrite dimensions in passed libbi object")
@@ -72,7 +77,8 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
   }
 
   if (!missing(type)) {
-    vars <- var_names(model, type)
+    vars <- var_names(model, type, opt=TRUE)
+    vars <- grep("has_output[^=]*=[^[0-1]*0", vars, value=TRUE, invert=TRUE)
   }
 
   if (!missing(vars)) {
@@ -104,9 +110,11 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
   res <- base::vector("list", length(nc_var_names[["other"]]))
   names(res) <- nc_var_names[["other"]]
 
-  ## associate time and coord variables
   ## read variables
-  if ("libbi" %in% class(x) && x$use_cache) {
+
+  ## cache
+  if ("libbi" %in% class(x) && x$use_cache &&
+      (missing(file) || file == "output")) {
     if (!missing(clear_cache) && clear_cache) {
       x$.cache$data <- NULL
       x$.cache$thin <- NULL
@@ -138,13 +146,13 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
         np_indices <- seq(1, dim_lengths["np"], by = thin)
         dim_lengths["np"] <- length(np_indices)
 
-        all_values <- array(dim = rev(dim_lengths))
+        all_values <- array(dim = dim_lengths)
 
         if (!missing(verbose) && verbose) pb <- txtProgressBar(min = 0, max = length(np_indices), char = ".", style = 1)
 
         for (i in seq_along(np_indices))
         {
-          dim_list <- lapply(rev(dim_lengths), seq_len)
+          dim_list <- lapply(dim_lengths, seq_len)
           dim_list[["np"]] <- i
           start_vec <- dim_lengths
           start_vec[] <- 1
@@ -155,19 +163,20 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
             do.call('[<-',
                     c(list(all_values),
                       unname(dim_list),
-                      list(read_var_input(nc, var_name,
-                                          start = start_vec,
-                                          count = count_vec))))
+                      list(ncvar_get(nc, var_name,
+                                     start = start_vec,
+                                     count = count_vec))))
           if (!missing(verbose) && verbose) setTxtProgressBar(pb, i)
         }
         if (!missing(verbose) && verbose) close(pb)
       } else {
-        all_values <- read_var_input(nc, var_name)
+        all_values <- ncvar_get(nc, var_name)
       }
 
-      ## check for any auxiliary dimensions (linking with time or coord variables)
-      auxiliary_dims <- unname(unlist(var_dims[c("coord", "time")]))
-      dim_names <- dim_names[dim_lengths > 1 | dim_names %in% auxiliary_dims]
+      if ("np" %in% names(dim_lengths) && dim_lengths[["np"]] == 1) {
+        dim_lengths <- dim_lengths[names(dim_lengths) != "np"]
+        dim_names <- names(dim_lengths)
+      }
 
       if (any(duplicated(dim_names))) {
         duplicated_dim_names <- dim_names[duplicated(dim_names)]
@@ -177,35 +186,36 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
         }
       }
 
-      ## preserve auxiliary dimensions of length 1
-      n_one_dims <- dim_names[dim_lengths[dim_names] == 1]
-      if (length(n_one_dims) > 0) {
-        all_values <- array(all_values, dim=c(dim(all_values), rep(1, length(n_one_dims) - 1)))
+      ## preserve dimensions of length 1, except "np"
+      if (length(dim_lengths) > 0) {
+        all_values <- array(all_values, dim=dim_lengths)
       }
 
-      if (prod(dim(all_values)) + length(n_one_dims) > 1) {
+      if (!is.null(dim(all_values))) {
 
-        mav <- data.table::data.table(reshape2::melt(all_values, varnames = rev(dim_names)))
+        mav <- data.table::data.table(data.table::melt(all_values, varnames = dim_names))
+        ## remove any extraneous dimensions from melting
+        mav <- mav[, c(dim_names, "value"), with=F]
 
         ## find matching time and coord variables
         all_matching_dims <- c()
         for (var_type in names(time_coord_names)) {
-          matching_dims <- unlist(var_dims[[var_type]][unlist(var_dims[[var_type]]) %in% dim_names])
-          matching_vars <- names(matching_dims)
+          matching_dims <- unname(unlist(var_dims[[var_type]])[unlist(var_dims[[var_type]]) %in% dim_names])
+          matching_vars <- names(var_dims[[var_type]])[vapply(var_dims[[var_type]], function(x) {any(x %in% dim_names)}, TRUE)]
           all_matching_dims <- union(all_matching_dims, matching_dims)
           if (length(matching_vars) == 1)  {
-            merge_values <- read_var_input(nc, matching_vars)
-            mav_merge <- data.table::data.table(reshape2::melt(merge_values, varnames = rev(matching_dims), value.name = time_coord_names[var_type]))
+            merge_values <- ncvar_get(nc, matching_vars)
+            mav_merge <- data.table::data.table(data.table::melt(merge_values, varnames = matching_dims, value.name = time_coord_names[var_type]))
             mav <- merge(mav_merge, mav, by = unname(matching_dims))
           } else if (length(matching_vars) > 1) {
-            stop("Found multiple matching time variables for ", var_name, ": ", matching_vars)
+            stop(paste0("Found multiple matching", var_type, " variables for ", var_name, ": ", matching_vars))
           }
         }
 
-        for (var in all_matching_dims) {
+        for (var in setdiff(all_matching_dims, "ns")) {
           mav[[var]] <- NULL
         }
-        table_order <- c(rev(setdiff(colnames(mav), c(time_coord_names, "value"))),
+        table_order <- c(setdiff(colnames(mav), c(time_coord_names, "value")),
                          intersect(colnames(mav), time_coord_names),
                          "value")
 
@@ -216,12 +226,12 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
         if (length(cols) > 0) setkeyv(mav, cols)
         rownames(mav) <- seq_len(nrow(mav))
 
-        if (!missing(dims) && length(dims) == 1 && "coord" %in% colnames(mav)) {
+        if (!missing(dims) && !is.null(dims) && length(dims) == 1 && "coord" %in% colnames(mav)) {
           setnames(mav, "coord", names(dims))
         }
 
         for (col in colnames(mav)) {
-          if (!missing(dims) && col %in% names(dims)) {
+          if (!missing(dims) && !is.null(dims) && col %in% names(dims)) {
             mav[[col]] <- factor(mav[[col]], labels = dims[[col]])
           } else if (!(col %in% c("value", time_coord_names[c("time", "coord")]))) {
             mav[[col]] <- mav[[col]] - 1
@@ -257,7 +267,8 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
 
   if (typeof(x) %in% c("character", "libbi")) nc_close(nc)
 
-  if ("libbi" %in% class(x) && x$use_cache) {
+  if ("libbi" %in% class(x) && x$use_cache &&
+      (missing(file) || file == "output")) {
     if (!("data" %in% names(x$.cache))) {
       x$.cache$data <- list()
     }
@@ -268,6 +279,17 @@ bi_read <- function(x, vars, dims, model, type, missval.threshold, coord_name, v
       x$.cache$data[[name]] <- res[[name]]
       x$.cache$thin[[name]] <- thin
     }
+  }
+
+  if (init.to.param) {
+    res <- lapply(res, function(x) {
+      if (is.data.frame(x) && "time" %in% colnames(x)) {
+        min_time <- min(x$time)
+        x <- x[x$time == min_time, ]
+        x$time <- NULL
+      }
+      x
+    })
   }
 
   return(res)

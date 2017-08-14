@@ -26,9 +26,9 @@ pre code {
 
 [RBi](https://github.com/libbi/RBi) is an `R` interface to [LibBi](http://libbi.org), a library for Bayesian inference with state-space models using high-performance computer hardware.
 
-### Latest Version: _0.7.0_
+### Latest Version: _0.8.0_
 
-The package has been tested on macOS/OSX and Linux. It requires a working installation of **LibBi**, which is easiest done using the [homebrew-science](http://brew.sh/homebrew-science/) tap: Install [Homebrew](http://brew.sh) (on OS X) or [Linuxbrew](http://linuxbrew.sh) (on linux), then issue the following commands (using a command shell, i.e. Terminal or similar):
+The package has been tested on macOS/OSX and Linux. It requires a working installation of **LibBi**, which is easiest done using the [homebrew-science](https://github.com/Homebrew/homebrew-science/blob/master/README.md) tap: Install [Homebrew](https://brew.sh) (on OS X) or [Linuxbrew](http://linuxbrew.sh) (on linux), then issue the following commands (using a command shell, i.e. Terminal or similar):
 
 ```{sh eval=FALSE}
 brew tap homebrew/science
@@ -187,7 +187,7 @@ Let's sample from the prior of the SIR model:
 bi <- sample(bi, target="prior", nsamples=1000, end_time=16*7, noutputs=16)
 ```
 ```{R echo=FALSE}
-bi <- rbi::sample(bi, target="prior", nsamples=1000, end_time=16*7, noutputs=16)
+bi <- rbi::sample(bi, target="prior", nsamples=1000, end_time=16*7, noutputs=16, seed=4775)
 ```
 
 
@@ -195,9 +195,6 @@ This step calls **LibBi** to sample from the prior distribution of the previousl
 
 ```{R eval=FALSE}
 bi <- sample(bi)
-```
-```{R echo=FALSE}
-bi <- rbi::sample(bi, target="prior", nsamples=1000, end_time=16*7, noutputs=16)
 ```
 
 The `sample` command returns an updated `libbi` object which, in this case, we just assign again to the `bi` object. Any call of `sample` preserves options passed to the previous call of `sample` and `libbi`, unless they are overwritten by arguments passed to `sample` (e.g., passing a new `nsamples` argument). Let's have a closer look at the `bi` object:

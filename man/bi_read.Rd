@@ -4,8 +4,8 @@
 \alias{bi_read}
 \title{Bi Read}
 \usage{
-bi_read(x, vars, dims, model, type, missval.threshold, coord_name, vector, thin,
-  verbose, clear_cache)
+bi_read(x, vars, dims, model, type, file, missval.threshold, coord_name, vector,
+  thin, verbose, clear_cache, init.to.param = FALSE)
 }
 \arguments{
 \item{x}{either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output}
@@ -18,6 +18,8 @@ bi_read(x, vars, dims, model, type, missval.threshold, coord_name, vector, thin,
 
 \item{type}{vector of types of variable to read (out of "param", "state", "noise", "obs"). This needs 'x' to be a \code{\link{libbi}} object or \code{model} to be specified}
 
+\item{file}{file to open (out of "input", "init", "obs", "output"), if \code{x} is given as a \code{libbi} object; by default, will read output file}
+
 \item{missval.threshold}{upper threshold for the likelihood}
 
 \item{coord_name}{name of coord dimension (if any)}
@@ -29,6 +31,8 @@ bi_read(x, vars, dims, model, type, missval.threshold, coord_name, vector, thin,
 \item{verbose}{if TRUE, will print variables as they are read}
 
 \item{clear_cache}{if TRUE, will clear the cache and re-read the file even if cached data exists}
+
+\item{init.to.param}{logical; if TRUE, convert states to initial values}
 }
 \value{
 list of results
@@ -43,4 +47,3 @@ case a NetCDF connection is opened, or directly as a NetCDF connection.
 example_output_file <- system.file(package="rbi", "example_output.nc")
 d <- bi_read(example_output_file)
 }
-

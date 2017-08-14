@@ -7,8 +7,8 @@
 \usage{
 \method{run}{libbi}(x, client, proposal = c("model", "prior"), model, fix,
   options, config, add_options, log_file_name, stdoutput_file_name, init, input,
-  obs, time_dim, working_folder, output_all, sample_obs, thin, chain = TRUE,
-  seed = TRUE, ...)
+  obs, time_dim, coord_dims, working_folder, output_all, sample_obs, thin,
+  chain = TRUE, seed = TRUE, ...)
 }
 \arguments{
 \item{x}{a \code{\link{libbi}} object}
@@ -39,6 +39,8 @@
 
 \item{time_dim}{The time dimension in any R objects that have been passed (\code{init}, \code{input}) and \code{obs}); if not given, will be guessed}
 
+\item{coord_dims}{The coord dimension(s) in any \code{obs} R objects that have been passed; if not given, will be guessed}
+
 \item{working_folder}{path to a folder from which to run \code{LibBi}; default to a temporary folder.}
 
 \item{output_all}{logical; if set to TRUE, all parameters, states and observations will be saved; good for debugging}
@@ -47,9 +49,9 @@
 
 \item{thin}{any thinning of MCMC chains (1 means all will be kept, 2 skips every other sample etc.); note that \code{LibBi} itself will write all data to the disk. Only when the results are read in with \code{\link{bi_read}} will thinning be applied.}
 
-\item{chain}{logical; if set to TRUE and \code{x} has been run before, the previous output file will be used as \code{init} file, and \code{init-np} will be set to the last iteration of the previous run. This is useful for running inference chains.}
+\item{chain}{logical; if set to TRUE and \code{x} has been run before, the previous output file will be used as \code{init} file, and \code{init-np} will be set to the last iteration of the previous run (unless target=="prediction"). This is useful for running inference chains.}
 
-\item{seed}{Either a number (the seed to supply to \code{LibBi}), or a logical variable: TRUE if a seed is to be generated for \code{LibBi}, FALSE if \code{LibBi} is to generate its own seed}
+\item{seed}{Either a number (the seed to supply to \code{LibBi}), or a logical variable: TRUE if a seed is to be generated for \code{RBi}, FALSE if \code{LibBi} is to generate its own seed}
 
 \item{...}{any unrecognised options will be added to \code{options}}
 }
@@ -69,4 +71,3 @@ if (bi_object$run_flag) {
 \seealso{
 \code{\link{libbi}}
 }
-
