@@ -383,6 +383,7 @@ remove_lines.bi_model <- function(x, what, only, ...) {
     assign_vars <- sub("\\[.*]", "", assign_vars)
     filter_lines <- assign_lines[which(!(assign_vars %in% only))]
     if (length(filter_lines) > 0) {
+      filter_lines <- c(1, filter_lines, length(to_remove))
       to_remove <- to_remove[-filter_lines]
     }
   }
@@ -402,7 +403,7 @@ write_model <- function(x, ...) UseMethod("write_model")
 #' @description
 #' Writes a bi model to a file given by \code{filename}. The extension '.bi' will be added if necessary.
 #'
-#' @param x a \code{\link{bi_model}} object, or a \code{\link{libbi}} object conatining a model
+#' @param x a \code{\link{bi_model}} object, or a \code{\link{libbi}} object containing a model
 #' @param filename name of the file to be written
 #' @param update.name whether to update the model name with the file name
 #' @param ... ignored
@@ -568,7 +569,7 @@ var_names.bi_model <- function(x, type, dim = FALSE, opt = FALSE,
       ## put commas in parentheses back
       names_vec <-
         c(names_vec,
-          unlist(strsplit(names, '\\([^)]+,(*SKIP)(*FAIL)|,\\s*', perl=TRUE)))
+          unlist(strsplit(names, '[([][^)\\]]+,(*SKIP)(*FAIL)|,\\s*', perl=TRUE)))
     }
   }
   if (!aux) names_vec <- grep("^__.*_$", names_vec, invert=TRUE, value=TRUE)

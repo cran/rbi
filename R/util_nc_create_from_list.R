@@ -7,7 +7,8 @@
 #' if it already exists.
 #' @param variables a \code{list}
 #' @param time_dim the name of the time dimension, if one exists; default: "time"
-#' @param coord_dims the names of the coordinate dimension, if any
+#' @param coord_dims the names of the coordinate dimension, if any; should be a named list of character vectors, they are matched to variables names
+#' @param dim_factors factors that dimensions have; this corresponds to the \code{dims} element of a \code{\link{libbi}} object
 #' @param value_column if any \code{variables} are data frames, which column contains the values (default: "value")
 #' @param guess_time whether to guess time dimension; this would be a numerical column in the data frame given which is not the \code{value_column}; only one such column must exist
 #' @param guess_coord whether to guess the coordinate dimension; this would be a column with varying value which is not the time or value column
@@ -29,7 +30,7 @@
 #'   dimension name.
 #' @return A list of the time and coord dims, and factors in extra dimensions, if any
 #' @importFrom ncdf4 nc_open nc_close ncdim_def ncvar_def nc_create ncvar_put
-netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, value_column = "value", guess_time = FALSE, guess_coord = FALSE, verbose){
+netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, dim_factors, value_column = "value", guess_time = FALSE, guess_coord = FALSE, verbose){
   ## get file name
   filename <- normalizePath(filename, "/", FALSE)
   ## argument consistency checks
@@ -39,8 +40,13 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
   if (is.null(names(variables)) || any(names(variables) == "")) {
     stop("'variables' must be named")
   }
+
+  legacy_coord_dims <- NA_character_
   if (missing(coord_dims) || length(coord_dims) == 0) {
-    coord_dims <- NULL
+    coord_dims <- list()
+  } else if (is.character(coord_dims)) {
+    legacy_coord_dims <- coord_dims
+    coord_dims <- list()
   } else if (guess_coord) {
     stop("'coord_dims' must not be given if guess_cord is TRUE")
   }
@@ -53,7 +59,7 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
 
   ## initialise variables
   dims <- list() ## dimension variables created with nc_dim
-  dim_factors <- list() ## factors for created dimension variables
+  if (missing(dim_factors)) dim_factors <- list() ## factors for created dimension variables
   vars <- list() ## variables created with nc_var
   values <- list() ## values in the variables
   for (name in names(variables)){ ## loop over list of variables
@@ -63,10 +69,13 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
     }
     ## get list element
     element <- variables[[name]]
+    if (!is.na(legacy_coord_dims)) {
+      coord_dims[[name]] <- intersect(legacy_coord_dims, colnames(element))
+      if (length(coord_dims[[name]]) == 0) coord_dims[[name]] <- NULL
+    }
     index_cols <- list()
     ## reset time and coord dim if we're guessing
     if (guess_time) time_dim <- NULL
-    if (guess_coord) coord_dims <- NULL
     ## reset nr index dimension name
     nr_index <- NULL
     if (is.data.frame(element)) {
@@ -104,7 +113,7 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
           exclude <- c(exclude, time_dim)
         }
         guessed_coord <- setdiff(colnames(element), exclude)
-        coord_dims <- guessed_coord
+        if (length(guessed_coord) > 0) coord_dims[[name]] <- guessed_coord
       }
 
       ## add time and coord dimensions to vector of index columns
@@ -114,8 +123,8 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
       if (!is.null(time_dim)) {
         index_cols <- c(index_cols, list(time = time_dim))
       }
-      if (!is.null(coord_dims)) {
-        index_cols <- c(index_cols, list(coord = coord_dims))
+      if (!is.null(coord_dims[[name]])) {
+        index_cols <- c(index_cols, list(coord = coord_dims[[name]]))
       }
 
       var_dims <- list()
@@ -123,8 +132,11 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
       ## first, check for time and coord columns
       present_index_cols <- intersect(colnames(element), unlist(index_cols))
       index_table <- unique(element[, present_index_cols, with = FALSE])
-      nr_table <- index_table
       if (nrow(index_table) > 0) {
+        setkeyv(index_table, unlist(index_cols))
+      }
+      nr_table <- data.table::copy(index_table)
+      if (nrow(nr_table) > 0) {
         if ("ns" %in% cols) {
           nr_table <- unique(nr_table[, setdiff(colnames(nr_table), "ns"), with = FALSE])
           var_dims <- c(list(ns_dim), var_dims)
@@ -133,7 +145,7 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
         if (nrow(nr_table) > 0) {
           nr_index <- paste("nr", name, sep = "_")
           nr_table[[nr_index]] <- seq_len(nrow(nr_table)) - 1
-          index_table <- merge(index_table, nr_table)
+          index_table <- merge(index_table, nr_table, by=present_index_cols)
           setkeyv(index_table, nr_index)
           nr_dim <- ncdim_def(nr_index, "", nr_table[[nr_index]])
           dims[[nr_index]] <- nr_dim
@@ -148,16 +160,16 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
           vars[[time_var]] <- ncvar_def(time_var, "", time_dims)
           values[[time_var]] <- index_table[[time_dim]]
         }
-        if (!is.null(coord_dims) &&
-            length(intersect(coord_dims, cols)) > 0) {
+        if (!is.null(coord_dims[[name]]) &&
+            length(intersect(coord_dims[[name]], cols)) > 0) {
           coord_var <- paste("coord", name, sep = "_")
-          if (length(coord_dims) > 1) {
+          if (length(coord_dims[[name]]) > 1) {
             coord_index <- paste("index", coord_var, sep = "_")
-            coord_index_values <- seq_along(coord_dims) - 1
+            coord_index_values <- seq_along(coord_dims[[name]]) - 1
             coord_index_dim <- ncdim_def(coord_index, "", coord_index_values)
             dims[[coord_index]] <- coord_index_dim
           }
-          for (coord_dim in coord_dims) {
+          for (coord_dim in coord_dims[[name]]) {
             if (!any(class(index_table[[coord_dim]]) %in% c("numeric", "integer") &&
                      length(setdiff(as.integer(index_table[[coord_dim]]), index_table[[coord_dim]])) == 0 &&
                      length(setdiff(seq_len(max(index_table[[coord_dim]])), unique(index_table[[coord_dim]]))) == 0))
@@ -176,26 +188,27 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
           }
 
           coord_var_dims <- dims[sub("^coord", "nr", coord_var)]
-          if (length(coord_dims) > 1) {
-            sort_keys <- c(coord_dims)
+          if (length(coord_dims[[name]]) > 1) {
+            sort_keys <- c(coord_dims[[name]])
             index_cols <- colnames(index_table)
-            if ("nr" %in% index_cols) sort_keys <- c(sort_keys, "nr")
+            if (nr_index %in% index_cols) sort_keys <- c(nr_index, sort_keys)
             if ("ns" %in% index_cols) sort_keys <- c(sort_keys, "ns")
             setkeyv(index_table, sort_keys)
-            index_table[[coord_var]] <- seq_len(nrow(index_table))
             id_columns <- c()
-            if ("nr" %in% index_cols) id_columns <- c("nr", id_columns)
+            if (nr_index %in% index_cols) id_columns <- c(nr_index, id_columns)
             if ("ns" %in% index_cols) id_columns <- c("ns", id_columns)
-            coord_table <-
-              data.table::melt(index_table[, c(id_columns, coord_dims),
-                                           with = FALSE], id.vars=id_columns)
+            if (length(id_columns) > 0) {
+              coord_table <-
+                data.table::melt(index_table[, c(id_columns, coord_dims[[name]]),
+                                             with = FALSE], id.vars=id_columns)
+            }
             sort_keys <- rev(setdiff(colnames(coord_table), "value"))
             setkeyv(coord_table, sort_keys)
             values[[coord_var]] <- coord_table[[value_column]]
             coord_var_dims <- c(coord_var_dims, list(coord_index_dim))
           } else
           {
-            values[[coord_var]] <- index_table[[coord_dims]]
+            values[[coord_var]] <- index_table[[coord_dims[[name]]]]
           }
           if ("ns" %in% cols) {
             coord_var_dims <- c(list(ns_dim), coord_var_dims)
@@ -243,7 +256,7 @@ netcdf_create_from_list <- function(filename, variables, time_dim, coord_dims, v
 
       table_order <- rev(names(var_dims))
       if (nrow(nr_table) > 0) {
-        element <- merge(element, nr_table)
+        element <- merge(element, nr_table, by=present_index_cols)
       }
 
       new_order <- lapply(intersect(table_order, colnames(element)), function(x) {element[[x]]})

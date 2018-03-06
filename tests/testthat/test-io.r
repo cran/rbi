@@ -3,6 +3,7 @@ context("Testing saving and retrieving libbi objects")
 bi <- libbi(model = system.file(package="rbi", "PZ.bi"))
 example_output_file <- system.file(package="rbi", "example_output.nc")
 bi <- attach_file(bi, "output", example_output_file)
+bi <- attach_file(bi, file="init", bi_read(bi, vars=c("mu", "sigma")))
 
 test_that("we can't add output twice'",
 {
@@ -48,4 +49,6 @@ test_that("basic I/O functions work",
   expect_true(bi_dim_len(example_output_file, "np") > 0)
   expect_equal(bi_dim_len(example_output_file, "dummy"), 0)
   expect_true(length(capture.output(bi_file_summary(example_output_file))) > 0)
+  expect_true(nrow(bi_read(bi, "time")$time) > 0)
 })
+

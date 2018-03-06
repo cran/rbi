@@ -26,12 +26,11 @@ pre code {
 
 [RBi](https://github.com/libbi/RBi) is an `R` interface to [LibBi](http://libbi.org), a library for Bayesian inference with state-space models using high-performance computer hardware.
 
-### Latest Version: _0.8.0_
+### Latest Version: _0.9.0_
 
-The package has been tested on macOS/OSX and Linux. It requires a working installation of **LibBi**, which is easiest done using the [homebrew-science](https://github.com/Homebrew/homebrew-science/blob/master/README.md) tap: Install [Homebrew](https://brew.sh) (on OS X) or [Linuxbrew](http://linuxbrew.sh) (on linux), then issue the following commands (using a command shell, i.e. Terminal or similar):
+The package has been tested on macOS/OSX and Linux. It requires a working installation of **LibBi**, which is easiest done using the the `brew` command: Install [Homebrew](https://brew.sh) (on OS X) or [Linuxbrew](http://linuxbrew.sh) (on linux), then issue the following command (using a command shell, i.e. Terminal or similar):
 
 ```{sh eval=FALSE}
-brew tap homebrew/science
 brew install libbi
 ```
 
@@ -60,7 +59,7 @@ Alternatively, the current development version can be installed using the `devto
 ```{r eval=FALSE}
 # install.packages("devtools")
 library('devtools')
-install_github("libbi/rbi")
+install_github("sbfnk/rbi")
 ```
 
 # Loading the package
@@ -345,13 +344,13 @@ bi
 
 # Creating `libbi` objects from previous runs
 
-To recreate a `libbi` object from a previous R session, use `add_output`.
+To recreate a `libbi` object from a previous R session, use `attach_file`.
 For example, one could use the following code to get the acceptance rate and plots for a *LibBi* run with a given output and model file:
 
 ```{R}
 PZ_run_file <- system.file(package="rbi", "example_output.nc")
 PZ_model_file <- system.file(package="rbi", "PZ.bi")
-PZ_posterior <- add_output(libbi(PZ_model_file), PZ_run_file)
+PZ_posterior <- attach_file(libbi(PZ_model_file), "output", PZ_run_file)
 traces <- mcmc(get_traces(PZ_posterior))
 a <- 1 - rejectionRate(traces) 
 a

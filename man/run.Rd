@@ -6,9 +6,9 @@
 \title{Using the LibBi wrapper to launch LibBi}
 \usage{
 \method{run}{libbi}(x, client, proposal = c("model", "prior"), model, fix,
-  options, config, add_options, log_file_name, stdoutput_file_name, init, input,
-  obs, time_dim, coord_dims, working_folder, output_all, sample_obs, thin,
-  chain = TRUE, seed = TRUE, ...)
+  options, config, add_options, log_file_name, init, input, obs, time_dim,
+  coord_dims, working_folder, output_all, sample_obs, thin, chain = TRUE,
+  seed = TRUE, ...)
 }
 \arguments{
 \item{x}{a \code{\link{libbi}} object}
@@ -21,15 +21,13 @@
 
 \item{fix}{any variable to fix, as a named vector}
 
-\item{options}{list of additional arguments to pass to the call to \code{LibBi}. Any arguments starting with `enable`/`disable` can be specified as boolean (e.g., `assert=TRUE`). Any `dry-` options can be specified with a `"dry"` argument, e.g., `parse="dry"`. Any options that would be specified with `with`/`without` can be specified as character vector to an option named `with`/`without`, respectively, e.g. with="transform-obs-to-state".}
+\item{options}{list of additional arguments to pass to the call to \code{LibBi}. Any arguments starting with `enable`/`disable` can be specified as boolean (e.g., `assert=TRUE`). Any `dry-` options can be specified with a `"dry"` argument, e.g., `dry="parse"`. Any options that would be specified with `with`/`without` can be specified as character vector to an option named `with`/`without`, respectively, e.g. with="transform-obs-to-state".}
 
 \item{config}{path to a configuration file, containing multiple arguments}
 
 \item{add_options}{deprecated, replaced by \code{options}}
 
 \item{log_file_name}{path to a file to text file to report the output of \code{LibBi}}
-
-\item{stdoutput_file_name}{deprecated; use log_file_name instead}
 
 \item{init}{initialisation of the model, either supplied as a list of values and/or data frames, or a (netcdf) file name, or a \code{\link{libbi}} object which has been run (in which case the output of that run is used as input). If the object given as \code{x} has been run before, it will be used here with \code{init-np} set to the last iteration of the previous run, unless \code{init} is given explicitly.}
 
