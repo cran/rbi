@@ -233,12 +233,21 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
         if (x$thin > 1) {
           x$thin <- 1
         }
-        x$options[["init"]] <- read_init
+        if (length(read_init) > 0) {
+          x$options[["init"]] <- read_init
+        } else {
+          x$options[["init"]] <- NULL
+        }
       } else {
         read_init <- bi_read(x, type=types, init.to.param=chain_init)
-        x$options[["init"]] <- extract_sample(read_init, "last")
+        ## only take last sample
+        if (length(read_init) > 0) {
+          x$options[["init"]] <- extract_sample(read_init, "last")
+        } else {
+          x$options[["init"]] <- NULL
+        }
       }
-      file_args <- union(file_args, "init")
+      if (!is.null(x$options)) file_args <- union(file_args, "init")
     }
   }
 
@@ -330,7 +339,7 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
     ## set obs-file to NULL if targeting prior or prediction
     obs_file_save <- x$options[["obs-file"]]
     if ("target" %in% names(all_options) &&
-        all_options[["target"]] %in% c("prior", "prediction")) {
+        all_options[["target"]] %in% c("prior", "join", "prediction")) {
       all_options[["obs-file"]] <- NULL
     }
 
@@ -370,16 +379,19 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
       run_model_modified <- TRUE
     }
 
-    if ("target" %in% names(all_options) &&
-        all_options[["target"]] == "prediction") {
-      run_model <- remove_lines(run_model, "parameter")
-      run_model <- remove_lines(run_model, "proposal_parameter")
-      if ("init-file" %in% names(x$option)) {
+    if ("target" %in% names(all_options)) {
+      if (all_options[["target"]] %in% c("joint", "prior", "prediction")) {
+        run_model <- remove_lines(run_model, "proposal_initial")
+        run_model <- remove_lines(run_model, "proposal_parameter")
+        run_model_modified <- TRUE
+      }
+      if (all_options[["target"]] == "prediction" &&
+          "init-file" %in% names(x$option)) {
         init_given <- bi_contents(x$options[["init-file"]])
         run_model <- remove_lines(run_model, "initial", only = init_given)
-        run_model <- remove_lines(run_model, "proposal_initial")
+        run_model <- remove_lines(run_model, "parameter", only = init_given)
+        run_model_modified <- TRUE
       }
-      run_model_modified <- TRUE
     }
     if (run_model_modified) {
       run_model_file_name <-

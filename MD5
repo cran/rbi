@@ -1,7 +1,7 @@
-46e1ae680e9c33ac4406ed6179f8b860 *DESCRIPTION
+b4822aff175b158948fd2b6c804d1a67 *DESCRIPTION
 91dfe476c7bce63e13d0759f1cbe4f0b *NAMESPACE
-52c88a5912cd0b6f647169209604eac7 *NEWS.md
-1e6755ace4805607526a63527b59000c *R/bi_contents.R
+51f5786d4e166f8143a7310cc30e8eea *NEWS.md
+bc78524639f109dc87f87b9158cd2ea0 *R/bi_contents.R
 0f8271f83ed1de429b2918329878279c *R/bi_dim_len.R
 d29c199ae869bef1ff7ef9c67f4ac3a3 *R/bi_file_summary.R
 91b0dcbdf412e550c332b0d9fe24c2ca *R/bi_generate_dataset.R
@@ -11,14 +11,14 @@ dcc6e0e74e75fd74bc9afe6ae13fc91c *R/bi_open.R
 61ed6e2d47639c0516137874d758c2ac *R/bi_write.R
 b3c519b44b205ceb30de0ed07361fbb7 *R/extract_sample.R
 80c2975af4bc180187321983b12ed739 *R/get_traces.R
-f2998035113b3c7669b67aa4f655612e *R/libbi.R
+6cd6ce3ef83b1c9fb755e1b1d658592d *R/libbi.R
 f278dad2f010f9762cbe08f58c9ef8d1 *R/rbi-package.R
 83b36dad18cb352f0b43eef88406584d *R/util_absolute_path.R
 4f3f0005959833845816a74fee563bad *R/util_nc_create_from_list.R
 120e1ca63f1d95160d015e258be1f628 *R/util_option_list.R
 d951222aff813181db8fd4464a530211 *R/util_option_string.R
 e069411e50becd3962a53d981e2ae3fc *README.md
-95f6d95fcd2cb80cc7a7dee3f085e1ec *build/vignette.rds
+2206cd74614f8f9819e4a84d1e4eed19 *build/vignette.rds
 32466cf74da6cb001f94e4f299511d3e *demo/00Index
 ec5b7f6c1ae9a4662de7150f22fd2060 *demo/PZ_PMMH.R
 ee1621589b725ff1785dc5850aeb6a97 *demo/PZ_SMC2.R
@@ -26,8 +26,8 @@ ee1621589b725ff1785dc5850aeb6a97 *demo/PZ_SMC2.R
 1c4188fe016045bbcd58141a79ebb144 *demo/PZ_generate_dataset.R
 bb39ad1c764f8e8519eb0efd119b71ef *inst/PZ.bi
 1a2a0e0b9ddfcb684632593264acf139 *inst/SIR.bi
-cb771f0d47b320db1dfa9b1a5e901ec7 *inst/doc/introduction.Rmd.rsp
-48d02620d3478cb93c3f628a72182b22 *inst/doc/introduction.html
+660674fb003c706526592a9971e7a0db *inst/doc/introduction.Rmd.rsp
+2c3174ca7d4c60ad84699fdeef4e47c4 *inst/doc/introduction.html
 fbc6b55f748c9105682cfb394c86c4da *inst/example_dataset.nc
 102321827823eb0b1f148b0a8d4ff106 *inst/example_output.nc
 02ba96822cad720d6e1bd4af6237ad43 *man/Extract.bi_model.Rd
@@ -35,7 +35,7 @@ fbc6b55f748c9105682cfb394c86c4da *inst/example_dataset.nc
 2d5bf92ba6a24a1f5f8a7c199aaa69f8 *man/add_block.Rd
 f9266d8b0d34352661a5d0b39f60c4f7 *man/assert_output.Rd
 657e12fd407d30239627869d31f88c59 *man/attach_file.Rd
-10ed09929e729ca0f26456e1efed32fc *man/bi_contants.Rd
+10ed09929e729ca0f26456e1efed32fc *man/bi_contents.Rd
 c71a92c9ab606b9c518b0881038ebad0 *man/bi_dim_len.Rd
 beea9d2944ae9c6ac7b62982905c5a7b *man/bi_file_summary.Rd
 dd7992fee667155a5bb511163b04e65a *man/bi_generate_dataset.Rd
@@ -79,6 +79,6 @@ d162a0ae8d9eb1a3e0731d7389720749 *man/var_names.Rd
 586b6396985ea9819f2e19f761ab81c7 *tests/testthat.R
 08634c2cb23f4da961a4c23c8dea7efa *tests/testthat/test-bi-model.r
 6d2cbfdc122147a8bd3570b036987c8b *tests/testthat/test-io.r
-dec4e51109a9686e252f293d286c9297 *tests/testthat/test-libbi.r
+9d840ca27649682d3f1265750b1dd1b3 *tests/testthat/test-libbi.r
 273ccc8eaeba958a03a59387897906fe *tests/testthat/test-samples.r
-cb771f0d47b320db1dfa9b1a5e901ec7 *vignettes/introduction.Rmd.rsp
+660674fb003c706526592a9971e7a0db *vignettes/introduction.Rmd.rsp

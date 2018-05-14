@@ -1,5 +1,5 @@
 Package: rbi
-Version: 0.9.0
+Version: 0.9.1
 Title: R Interface to LibBi
 Authors@R: c(
         person("Pierre E.", "Jacob", email = "pierre.jacob.work@gmail.com", role = "aut"),
@@ -18,11 +18,11 @@ LazyLoad: no
 RoxygenNote: 6.0.1
 VignetteBuilder: R.rsp
 NeedsCompilation: no
-Packaged: 2018-03-06 14:31:03 UTC; seb
+Packaged: 2018-05-14 14:56:01 UTC; seb
 Author: Pierre E. Jacob [aut],
   Anthony Lee [ctb],
   Lawrence M. Murray [ctb],
   Sebastian Funk [aut, cre]
 Maintainer: Sebastian Funk <sebastian.funk@lshtm.ac.uk>
 Repository: CRAN
-Date/Publication: 2018-03-06 14:39:30 UTC
+Date/Publication: 2018-05-14 16:28:05 UTC
