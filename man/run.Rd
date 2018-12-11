@@ -5,13 +5,14 @@
 \alias{run.libbi}
 \title{Using the LibBi wrapper to launch LibBi}
 \usage{
-\method{run}{libbi}(x, client, proposal = c("model", "prior"), model, fix,
-  options, config, add_options, log_file_name, init, input, obs, time_dim,
-  coord_dims, working_folder, output_all, sample_obs, thin, chain = TRUE,
-  seed = TRUE, ...)
+\method{run}{libbi}(x, client, proposal = c("model", "prior"), model,
+  fix, options, config, log_file_name = character(0), init, input, obs,
+  time_dim = character(0), coord_dims = list(), working_folder,
+  output_all = FALSE, sample_obs = FALSE, thin, output_every,
+  chain = TRUE, seed = TRUE, debug = FALSE, ...)
 }
 \arguments{
-\item{x}{a \code{\link{libbi}} object}
+\item{x}{a \code{\link{libbi}} object; if this is not given, an empty \code{\link{libbi}} object will be created}
 
 \item{client}{client to pass to LibBi}
 
@@ -21,37 +22,39 @@
 
 \item{fix}{any variable to fix, as a named vector}
 
-\item{options}{list of additional arguments to pass to the call to \code{LibBi}. Any arguments starting with `enable`/`disable` can be specified as boolean (e.g., `assert=TRUE`). Any `dry-` options can be specified with a `"dry"` argument, e.g., `dry="parse"`. Any options that would be specified with `with`/`without` can be specified as character vector to an option named `with`/`without`, respectively, e.g. with="transform-obs-to-state".}
+\item{options}{deprecated; pass options directly, see documentation for \code{...}}
 
 \item{config}{path to a configuration file, containing multiple arguments}
 
-\item{add_options}{deprecated, replaced by \code{options}}
+\item{log_file_name}{path to a file to text file to report the output of \code{LibBi}; if set to an empty vector (\code{character(0)}) or an empty string (""), which is the default, a temporary log file will be generated}
 
-\item{log_file_name}{path to a file to text file to report the output of \code{LibBi}}
-
-\item{init}{initialisation of the model, either supplied as a list of values and/or data frames, or a (netcdf) file name, or a \code{\link{libbi}} object which has been run (in which case the output of that run is used as input). If the object given as \code{x} has been run before, it will be used here with \code{init-np} set to the last iteration of the previous run, unless \code{init} is given explicitly.}
+\item{init}{initialisation of the model, either supplied as a list of values and/or data frames, or a (netcdf) file name, or a \code{\link{libbi}} object which has been run (in which case the output of that run is used). If the object given as \code{x} has been run before, it will be used here with \code{init-np} set to the last iteration of the previous run, unless \code{init} is given explicitly.}
 
 \item{input}{input of the model, either supplied as a list of values and/or data frames, or a (netcdf) file name, or a \code{\link{libbi}} object which has been run (in which case the output of that run is used as input)}
 
 \item{obs}{observations of the model, either supplied as a list of values and/or data frames, or a (netcdf) file name, or a \code{\link{libbi}} object which has been run (in which case the output of that run is used as observations)}
 
-\item{time_dim}{The time dimension in any R objects that have been passed (\code{init}, \code{input}) and \code{obs}); if not given, will be guessed}
+\item{time_dim}{The time dimension in any R objects that have been passed (\code{init}, \code{input}) and \code{obs}); if NULL (default), will be guessed from the given observation}
 
-\item{coord_dims}{The coord dimension(s) in any \code{obs} R objects that have been passed; if not given, will be guessed}
+\item{coord_dims}{The coord dimension(s) in any \code{obs} R objects that have been passed; if NULL (default), will be guessed from the given observation file given}
 
 \item{working_folder}{path to a folder from which to run \code{LibBi}; default to a temporary folder.}
 
-\item{output_all}{logical; if set to TRUE, all parameters, states and observations will be saved; good for debugging}
+\item{output_all}{deprecated; if set to TRUE, all parameters, states and observations will be saved; good for debugging}
 
-\item{sample_obs}{logical; if set to TRUE, will sample observations}
+\item{sample_obs}{deprecated; if set to TRUE, will sample observations}
 
 \item{thin}{any thinning of MCMC chains (1 means all will be kept, 2 skips every other sample etc.); note that \code{LibBi} itself will write all data to the disk. Only when the results are read in with \code{\link{bi_read}} will thinning be applied.}
+
+\item{output_every}{real; if given, \code{noutputs} will be set so that there is output every \code{output_every} time steps; if set to 0, only generate an output at the final time}
 
 \item{chain}{logical; if set to TRUE and \code{x} has been run before, the previous output file will be used as \code{init} file, and \code{init-np} will be set to the last iteration of the previous run (unless target=="prediction"). This is useful for running inference chains.}
 
 \item{seed}{Either a number (the seed to supply to \code{LibBi}), or a logical variable: TRUE if a seed is to be generated for \code{RBi}, FALSE if \code{LibBi} is to generate its own seed}
 
-\item{...}{any unrecognised options will be added to \code{options}}
+\item{debug}{logical; if TRUE, print more verbose messages and write all variables to the output file, irrespective of their setting of 'has_output'}
+
+\item{...}{list of additional arguments to pass to the call to \code{LibBi}. Any arguments starting with `enable`/`disable` can be specified as boolean (e.g., `assert=TRUE` or `cuda=TRUE`). Any `dry-` options can be specified with a `"dry"` argument, e.g., `dry="parse"`. Any options that would be specified with `with`/`without` can be specified as character vector to an option named `with`/`without`, respectively, e.g. with="transform-obs-to-state".}
 }
 \value{
 a \code{\link{libbi}} object, except if \code{client} is 'rewrite',  in which case a \code{\link{bi_model}} object will be returned
@@ -61,9 +64,9 @@ The method \code{run} launches \code{LibBi} with a particular set of command lin
 }
 \examples{
 bi_object <- libbi(model = system.file(package="rbi", "PZ.bi"))
-\dontrun{run(bi_object, options=list(client="sample", sample="smc2"))}
-if (bi_object$run_flag) {
-  bi_file_summary(bi_object$output_file_name)
+\dontrun{
+  run(bi_object, client="sample", target="prior")
+  bi_file_summary(bi_object)
 }
 }
 \seealso{

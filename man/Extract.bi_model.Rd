@@ -2,11 +2,11 @@
 % Please edit documentation in R/bi_model.R
 \name{Extract.bi_model}
 \alias{Extract.bi_model}
-\alias{[<-.bi_model}
-\alias{`[<-.bi_model`}
-\title{Subset and replace model lines}
+\alias{[.bi_model}
+\alias{`[.bi_model`}
+\title{Subset model lines}
 \usage{
-\method{[}{bi_model}(x, i, ...) <- value
+\method{[}{bi_model}(x, i, ...)
 }
 \arguments{
 \item{x}{A bi_model}
@@ -14,17 +14,12 @@
 \item{i}{A vector of line numbers}
 
 \item{...}{ignored}
-
-\item{value}{A vector of the same length as \code{i}, containing the
-replacement strings}
 }
 \description{
-Extracts a subset of lines from the model and, if used with the assignment
-  operator, assigns new character strings.
+Extracts a subset of lines from the model.
 }
 \examples{
 model_file_name <- system.file(package="rbi", "PZ.bi")
 PZ <- bi_model(filename = model_file_name)
 PZ[3:4]
-PZ[3:4] <- c("const e = 0.4", "const m_l = 0.05")
 }

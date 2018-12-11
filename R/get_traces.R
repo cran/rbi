@@ -6,7 +6,7 @@
 #'     traces.
 #' @param x a \code{\link{libbi}} object which has been run, or a
 #'     list of data frames containing parameter traces (as returned by
-#'     from \code{bi_read}); if it is not a \code{\link{libbi}}
+#'     \code{bi_read}); if it is not a \code{\link{libbi}}
 #'     object, either 'all' must be TRUE or a model given
 #' @param all whether all variables in the run file should be
 #'     considered (otherwise, just parameters)
@@ -41,7 +41,12 @@ get_traces <- function(x, model, burnin, all = FALSE, ...) {
     if (missing(model)) {
       stop("Either 'all' must be set to TRUE, or a model given (implicitly via the 'x' or explicitly via 'model' options)")
     } else {
-      read_options <- c(read_options, list(type = "param"))
+      types <- "param"
+      if ("libbi" %in% class(x) &&
+            "with-transform-initial-to-param" %in% names(x$options)) {
+        types <- c(types, "state")
+      }
+      read_options <- c(read_options, list(type = types))
     }
   }
 
@@ -51,7 +56,7 @@ get_traces <- function(x, model, burnin, all = FALSE, ...) {
       if (all) {
         res <- x
       } else {
-        res <- x[intersect(names(x), var_names(model, "param"))]
+        res <- x[intersect(names(x), var_names(model, type="param"))]
       }
   } else {
       stop("'x' must be a 'libbi' object or a file name or a list of data frames.")
@@ -62,6 +67,10 @@ get_traces <- function(x, model, burnin, all = FALSE, ...) {
   }
 
   wide_list <- lapply(names(res), function(param) {
+    if ("time" %in% colnames(res[[param]])) {
+      res[[param]] <- res[[param]][res[[param]]$time == min(res[[param]]$time), ]
+      res[[param]][["time"]] <- NULL
+    }
     extra.dims <- setdiff(colnames(res[[param]]), c("np", "param", "value"))
     if (length(extra.dims) > 0) {
       df <-

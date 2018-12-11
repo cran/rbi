@@ -2,14 +2,14 @@
 % Please edit documentation in R/bi_model.R
 \name{var_names}
 \alias{var_names}
-\alias{var_names.bi_model}
-\title{Get variables}
+\title{Get variable names in a LibBi model}
 \usage{
-\method{var_names}{bi_model}(x, type, dim = FALSE, opt = FALSE,
-  aux = FALSE, ...)
+var_names(x, vars, type, dim = FALSE, opt = FALSE, aux = FALSE)
 }
 \arguments{
 \item{x}{a \code{\link{bi_model}} object}
+
+\item{vars}{a character vector of variable names; if given, only these variables names will be considered}
 
 \item{type}{a character vector of one or more types}
 
@@ -18,14 +18,12 @@
 \item{opt}{logical; if set to TRUE, names will contain options (e.g., has_output)}
 
 \item{aux}{logical; if set to TRUE, auxiliary names will be returned}
-
-\item{...}{ignored}
 }
 \value{
 variable names
 }
 \description{
-Get all variable names of one or more type(s)
+Get variable names of one or more type(s)
 
 This returns all variable names of a certain type ("param", "state", "obs", "noise", "const") contained in the model of a \code{\link{libbi}} object
 }

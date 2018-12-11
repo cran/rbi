@@ -3,7 +3,6 @@
 \name{optimise}
 \alias{optimise}
 \alias{optimise.libbi}
-\alias{optimise}
 \alias{optimise.bi_model}
 \title{Using the LibBi wrapper to optimise}
 \usage{
@@ -12,7 +11,7 @@
 \method{optimise}{bi_model}(x, ...)
 }
 \arguments{
-\item{x}{a \code{\link{libbi} or \link{bi_model}} object, or the name of a file containing the model}
+\item{x}{a \code{\link{libbi}} or \code{link{bi_model}} object, or the name of a file containing the model}
 
 \item{...}{options to be passed to \code{\link{run.libbi}}}
 }

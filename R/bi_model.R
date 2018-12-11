@@ -34,6 +34,128 @@ bi_model <- function(filename, lines, ...) {
   return(clean_model(model))
 }
 
+#' @rdname remove_vars
+#' @name remove_vars
+#' @title Remove variables
+#' @description
+#' Removes variables from the left-hand side of a model
+#'
+#' Used by \code{\link{fix}} and \code{\link{to_input}}
+#' @param x a \code{\link{bi_model}} object
+#' @param vars vector of variables to remove
+#' @param ... values to be assigned to the (named) variables
+#' @return a bi model object of the new model
+#' @seealso \code{\link{bi_model}}
+remove_vars <- function(x, vars) {
+
+  ## remove variable declarations
+  var_str <-
+    paste0("^[[:space:]]*(noise|param|state|input|const|obs)[[:space:]]+(",
+           paste(vars, collapse = "|"), ")([[:space:][\\=~]|$)")
+  var_line_nbs <- grep(var_str, x)
+
+  save_var_names <- var_names(x)
+
+  if (length(var_line_nbs) > 0)
+  {
+    x <- x[-var_line_nbs]
+  }
+
+  for (var in intersect(vars, save_var_names)) {
+    ## remove assignments
+    assignments <-
+      grep(paste0("^[[:space:]]*", var,
+                  "(/dt)?[[:space:]]*(\\[[^]]*\\])?[[:space:]]*(~|=|<-)"),
+           x)
+    ode_assignments <- 
+      grep(paste0("^[[:space:]]*d", var,
+                  "/dt[[:space:]]*(\\[[^]]*\\])?[[:space:]]*(~|=|<-)"),
+           x)
+    all_assignments <- c(assignments, ode_assignments)
+    if (length(all_assignments) > 0) {
+      x <- x[-all_assignments]
+    }
+  }
+
+  return(clean_model(x))
+}
+
+#' @rdname to_input
+#' @name to_input
+#' @title Convert variables into inputs
+#' @description
+#' Used for predictions, if one doesn't want to re-simulate state/noise trajectories
+#'
+#' @param x a \code{\link{bi_model}} object
+#' @param vars vector of variables to convert to inputs
+#' @return a bi model object of the new model
+#' @seealso \code{\link{bi_model}}
+#' @keywords internal
+to_input <- function(x, vars) {
+
+  ## only consider state or noise variables
+  var_names_args <- list(x, type=c("state", "noise"))
+  if (!missing(vars)) var_names_args[["vars"]] <- vars
+  sn_vars <- do.call(var_names, var_names_args)
+  ## get full variable names, with dimensions
+  dim_vars <- var_names(x, vars=sn_vars, dim=TRUE)
+  names(dim_vars) <- sn_vars
+
+  ## remove variables
+  x <- remove_vars(x, sn_vars)
+
+  input_lines <- c()
+  for (var in sn_vars) {
+    ## add input definition after dimensions are defined
+    input_lines[var] <- paste("input", dim_vars[[var]])
+  }
+  if (length(input_lines) > 0) {
+    dim_lines <- grep("^[[:space:]]*dim[[:space:]]", x)
+    if (length(dim_lines)==0) dim_lines <- 1
+    x <- insert_lines(x, input_lines, after=max(dim_lines))
+  }
+
+  return(clean_model(x))
+}
+
+#' @rdname enable_outputs
+#' @name enable_outputs
+#' @title Enable outputting variables in a \code{\link{bi_model}}
+#' @description
+#' Any variable type given will have any 'has_output=0' option removed in the given model..
+#'
+#' @param x a \code{\link{bi_model}} object
+#' @param type either "all" (default), or a vector of variable types that are to have outputs enabled
+#' @return a bi model object of the new model
+#' @examples
+#' model_file_name <- system.file(package="rbi", "PZ.bi")
+#' PZ <- bi_model(filename = model_file_name)
+#' PZ[6] <- "param mu (has_output=0)"
+#' PZ <- enable_outputs(PZ)
+#' @seealso \code{\link{bi_model}}
+#' @export
+enable_outputs <- function(x, type="all") {
+  if (!("bi_model") %in% class(x)) stop("'x' must be a 'bi_model' object.")
+  if (length(type) > 1 && "all" %in% type) stop("'type=\"all\"' only makes sense on its own")
+  if ("all" %in% type) type <- c("param", "state", "noise")
+  opt_vars <- var_names(x, type=type, opt=TRUE)
+  no_output_pattern <-
+    "([[:space:](,])(has_output[[:space:]]*=[[:space:]]*0[[:space:]]*)([,)])"
+  no_output <- grep(no_output_pattern, opt_vars)
+  noopt_nooutput_vars <- var_names(x, type=type)[no_output]
+  var_lines <-
+    grep(paste0("^[[:space:]]*(", paste(type, collapse="|"),")[[:space:]]*(",
+                paste(noopt_nooutput_vars, collapse="|"), ")[[:space:]([]"), x)
+
+  updated_lines <- sub(no_output_pattern, "\\1\\3", x[var_lines])
+  updated_lines <- gsub(",,", ",", updated_lines)
+  updated_lines <- gsub("\\(,", "(", updated_lines)
+  updated_lines <- gsub(",\\)", ")", updated_lines)
+  updated_lines <- sub("[[:space:]]*\\(\\)", "", updated_lines)
+  x[var_lines] <- updated_lines
+  return(clean_model(x))
+}
+
 #' @export
 fix <- function(x, ...) UseMethod("fix")
 #' @rdname fix
@@ -56,57 +178,18 @@ fix.bi_model <- function(x, ...) {
 
   fixed <- list(...)
 
-  ## variables that are to be fixed
-  var_str <-
-    paste0("^[[:space:]]*(noise|param|state|input|const|obs)[[:space:]]+(",
-           paste(names(fixed), collapse = "|"), ")([[:space:][\\=~]|$)")
-  var_line_nbs <- grep(var_str, x)
+  x <- remove_vars(x, names(fixed))
 
-  var_vec <- var_names(x)
-
-  unmatched_names <- setdiff(names(fixed), var_vec)
-
-  if (length(var_line_nbs) > 0)
-  {
-    x <- x[-var_line_nbs]
-  }
-
-  for (name in unmatched_names)
-  {
-    fixed_line <-
-      paste0("const ", name, " = ", fixed[[name]])
-    if (length(var_line_nbs) > 0)
-    {
-      first_const_line <- var_line_nbs[1]
-    } else
-    {
-      first_const_line <- grep("^[[:space:]]*(noise|param|state|input|const)[[:space:]]+", x)[1]
-    }
-    x <-
-      c(x[1:(first_const_line - 1)],
-        fixed_line,
-        x[first_const_line:length(x)])
-  }
-
-  for (var in intersect(names(fixed), var_vec)) {
-    ## remove assignments
-    assignments <-
-      grep(paste0("^[[:space:]]*", var,
-                  "(/dt)?[[:space:]]*(\\[[^]]*\\])?[[:space:]]*(~|=|<-)"),
-           x)
-    if (length(assignments) > 0) {
-      x <- x[-assignments]
-    }
+  for (var in names(fixed)) {
 
     ## remove dimensions
     x <-
-      gsub(paste0(var, "[[:space:]]*\\[[^]]*\\]"), var, x)
+      gsub(paste0("(^|[^a-zA-Z_0-0])", var, "[[:space:]]*\\[[^]]*\\]"),
+           paste0("\\1", var), x)
 
     ## add const assignment
     fixed_line <- paste0("const ", var, " = ", fixed[[var]])
-    x <- c(x[1:(var_line_nbs[1] - 1)],
-                   fixed_line, 
-                   x[(var_line_nbs[1]):length(x)])
+    x <- c(x[1], fixed_line, x[2:length(x)])
 
   }
 
@@ -136,42 +219,6 @@ propose_prior <- function(x) {
 
   prior_initial <- get_block(new_model, "initial")
   new_model <- add_block(new_model, "proposal_initial", lines = prior_initial)
-
-  return(clean_model(new_model))
-}
-
-#' @name obs_to_noise
-#' @title Copy obs variables to state variables (with '__sample_' prepended)
-#'
-#' @description
-#' This is used by the \code{\link{run}} functions of rbi, if 'sample_obs=TRUE'
-#'   is specified.
-#' @param x a \code{\link{bi_model}} object
-#' @return a \code{\link{bi_model}}
-#' @seealso \code{\link{bi_model}}
-#' @keywords internal
-#' @rdname obs_to_noise
-obs_to_noise <- function(x) {
-  new_model <- bi_model(lines = x)
-  obs_block <- get_block(x, "observation")
-  obs_variables <- var_names(x, "obs", dim=TRUE)
-  obs_variable_names <- var_names(x, "obs", dim=FALSE)
-
-  obs_var_pattern <- paste0("^(", paste(obs_variable_names, collapse = "|"), ")")
-  state_block <- sub(obs_var_pattern, "__sample_\\1", obs_block)
-  state_variables <- paste0("__sample_", obs_variables)
-  new_model <- insert_lines(new_model, state_block, at_end_of = "transition")
-  dims <- var_names(x, "dim")
-  if (length(dims) > 0) {
-    insert_after <- max(grep("^[[:space:]]*dim[[:space:]]", new_model))
-  } else {
-    insert_after <- 1
-  }
-
-  new_model <-
-    insert_lines(new_model,
-                 paste("noise ", paste(state_variables, collapse = ", ")),
-                 after = insert_after)
 
   return(clean_model(new_model))
 }
@@ -226,6 +273,24 @@ clean_model <- function(x) {
         i <- i + 1
       }
     }
+  }
+
+  ## split multiple declarations in a single line
+  comma_lines <-
+    paste0("^[[:space:]]*(noise|param|state|input|const|obs)[[:space:]]+",
+           "([^[:space:]].*,.*$)")
+  comma_line_nbs <- grep(comma_lines, x)
+
+  for (id in seq_along(comma_line_nbs)) {
+    line_nb <- comma_line_nbs[id]
+    type <- sub(comma_lines, "\\1", x[line_nb])
+    type_vars <- sub(comma_lines, "\\2", x[line_nb])
+    vars <-
+      unlist(strsplit(type_vars, '[([][^)\\]]+,(*SKIP)(*FAIL)|,\\s*', perl=TRUE))
+    vars <- gsub("[[:space:]]", "", vars)
+    new_lines <- paste(type, vars)
+    x <- c(x[1:(line_nb-1)], new_lines, x[(line_nb+1):length(x)])
+    comma_line_nbs <- comma_line_nbs + length(new_lines) - 1
   }
 
   ## remove multiple spaces
@@ -284,7 +349,7 @@ insert_lines.bi_model <- function(x, lines, before, after, at_beginning_of, at_e
   if (length(arg_name) != 1) {
     stop("insert_lines needs exactly three arguments, 'x', 'lines' and one of 'before', 'after', 'at_beginning_of' or 'at_end_of'")
   }
-  arg <- get(arg_name)
+  arg <- eval.parent(args[[arg_name]])
   if (is.numeric(arg)) arg <- as.integer(arg)
 
   if (arg_name %in% c("before", "after") && is.integer(arg)) {
@@ -353,6 +418,7 @@ remove_lines <- function(x, ...) UseMethod("remove_lines")
 #' @param x a \code{\link{bi_model}} object
 #' @param what either a vector of line number(s) to remove, or a vector of blocks to remove (e.g., "parameter")
 #' @param only only remove lines assigning given names (as a vector of character strings)
+#' @param type which types of lines to remove, either "all", "sample" (i.e., lines with a "~") or "assignment" (lines with a "<-" or "=") (default: "all")
 #' @param ... ignored
 #' @return the updated bi model
 #' @seealso \code{\link{bi_model}}
@@ -362,10 +428,11 @@ remove_lines <- function(x, ...) UseMethod("remove_lines")
 #' PZ <- remove_lines(PZ, 2)
 #' @rdname remove_lines
 #' @export
-remove_lines.bi_model <- function(x, what, only, ...) {
+remove_lines.bi_model <- function(x, what, only, type=c("all", "assignment", "sample"), ...) {
   if (missing(what)) {
     stop("'what' must be given")
   }
+  type <- match.arg(type)
   to_remove <- c()
   if (is.numeric(what)) {
     to_remove <- what
@@ -375,17 +442,27 @@ remove_lines.bi_model <- function(x, what, only, ...) {
     stop("'what' must be a numeric or character vector.")
   }
 
-  if (length(to_remove) > 0 && !missing(only)) {
-    pattern <- "^(const)?[[:space:]]?([A-Za-z_0-9[\\]]*)[[:space:]]*(~|=|<-)"
+  operators <- list(assignment=c("=", "<-"), sample="~")
+
+  ## check if we don't want to remove everything
+  if (length(to_remove) > 0 && (type != "all" || !missing(only))) {
+    if (type == "all") {
+      op_types <- unlist(operators)
+    } else {
+      op_types <- operators[[type]]
+    }
+    pattern <-
+      paste0("^(const)?[[:space:]]*([A-Za-z_0-9[\\]][[:space:]A-Za-z_0-9,[\\]]*)",
+             "(", paste(op_types, collapse="|"), ")")
     assign_lines <- grep(pattern, x[to_remove], perl=TRUE)
     assign_vars <- sub(paste0(pattern, ".*$"), "\\2",
                        x[to_remove][assign_lines], perl=TRUE)
-    assign_vars <- sub("\\[.*]", "", assign_vars)
-    filter_lines <- assign_lines[which(!(assign_vars %in% only))]
-    if (length(filter_lines) > 0) {
-      filter_lines <- c(1, filter_lines, length(to_remove))
-      to_remove <- to_remove[-filter_lines]
+    assign_vars <- sub("[[:space:]]", "", sub("\\[.*]", "", assign_vars))
+    if (!missing(only)) assign_lines <- assign_lines[assign_vars %in% only]
+    if (is.character(what) && length(assign_lines) == length(to_remove) - 2) {
+      assign_lines <- c(1, assign_lines, length(to_remove))
     }
+    to_remove <- to_remove[assign_lines]
   }
 
   if (length(to_remove) > 0) {
@@ -435,6 +512,8 @@ write_model.libbi <- function(x, filename, ...){
   write_model(x$model, filename=filename, ...)
 }
 
+#' @export
+find_block <- function(x, ...) UseMethod("find_block")
 #' @name find_block
 #' @title Find a block in a LibBi model
 #'
@@ -446,9 +525,9 @@ write_model.libbi <- function(x, filename, ...){
 #' @param x a \code{\link{bi_model}} object
 #' @param name of the block to find
 #' @rdname find_block
-find_block <- function(x, name) {
+find_block.bi_model <- function(x, name) {
   lines <- as.character(x)
-  sub_regexp <- paste0("^[[:space:]]*(sub[[:space:]]+)?[[:space:]]*", name, "[[:space:]]*(\\(.*\\))?[[:space:]]*\\{")
+  sub_regexp <- paste0("^[[:space:]]*(sub[[:space:]]+)?[[:space:]]*", name, "([[:space:]][a-zA-Z0-9_\\.]+)?[[:space:]]*(\\(.*\\))?[[:space:]]*\\{")
   sub_line <- grep(sub_regexp, lines)
   if (length(sub_line) == 1) {
     lines[sub_line] <- sub(sub_regexp, "", lines[sub_line])
@@ -480,11 +559,12 @@ get_block <- function(x, ...) UseMethod("get_block")
 #' @rdname get_block
 #' @export
 get_block.bi_model <- function(x, name, ...) {
+  if (missing(name)) stop("The name of the block must be provided as 'name'")
   block <- find_block(x, name)
   if (length(block) > 0) {
     lines <- as.character(x[block])
     lines[1] <-
-      sub(paste0("^[[:space:]]*(sub[[:space:]]+)?", name, "[[:space:]]*\\{"), "", lines[1])
+      sub(paste0("^[[:space:]]*(sub[[:space:]]+)?", name, "(\\{|[[:space:]][^{]*\\{)"), "", lines[1])
     lines[length(lines)] <- sub("\\}[[:space:]]*$", "", lines[length(lines)])
     empty_lines <- grep("^[[:space:]]*$", lines)
     if (length(empty_lines) > 0) {
@@ -492,7 +572,7 @@ get_block.bi_model <- function(x, name, ...) {
     }
     return(lines)
   } else {
-    return(NA)
+    return(character(0))
   }
 }
 
@@ -523,25 +603,22 @@ add_block.bi_model <- function(x, name, lines, options, ...) {
   clean_model(x)
 }
 
-#' @export
-var_names <- function(x, ...) UseMethod("var_names")
 #' @name var_names
-#' @title Get variables
+#' @title Get variable names in a LibBi model
 #' @description
-#' Get all variable names of one or more type(s)
+#' Get variable names of one or more type(s)
 #'
 #' This returns all variable names of a certain type ("param", "state", "obs", "noise", "const") contained in the model of a \code{\link{libbi}} object
 #' @param x a \code{\link{bi_model}} object
+#' @param vars a character vector of variable names; if given, only these variables names will be considered
 #' @param type a character vector of one or more types
 #' @param dim logical; if set to TRUE, names will contain dimensions in brackets
 #' @param opt logical; if set to TRUE, names will contain options (e.g., has_output)
 #' @param aux logical; if set to TRUE, auxiliary names will be returned
-#' @param ... ignored
 #' @return variable names
 #' @rdname var_names
 #' @export
-var_names.bi_model <- function(x, type, dim = FALSE, opt = FALSE,
-                               aux = FALSE, ...) {
+var_names <- function(x, vars, type, dim = FALSE, opt = FALSE, aux = FALSE) {
   names_vec <- c()
   if (missing(type)) {
     type <- c("param", "state", "input", "const", "obs", "noise")
@@ -551,29 +628,103 @@ var_names.bi_model <- function(x, type, dim = FALSE, opt = FALSE,
     line_nbs <- grep(paste0("^[[:space:]]*", for_type, "[[:space:]]"), x)
     if (length(line_nbs) > 0) {
       ## remove qualifier
-      names <- sub(paste0("^[[:space:]]*", for_type, "[[:space:]]"), "", x[line_nbs])
+      name <- sub(paste0("^[[:space:]]*", for_type, "[[:space:]]"), "", x[line_nbs])
+      clean_name <- name
       if (!dim) {
         ## remove dimensions
-        names <- sub("\\[.*\\]", "", names)
+        name <- gsub("\\[[^]]*\\]", "", name)
       }
+      clean_name <- gsub("\\[[^]]*\\]", "", clean_name)
       if (!opt) {
         ## remove options
-        names <- sub("\\(.*\\)", "", names)
+        name <- sub("\\([^)]*\\)", "", name)
       }
+      clean_name <- sub("\\([^)]*\\)", "", clean_name)
       if (for_type == "const") {
         ## remove assignments
-        names <- sub("=.*$", "", names)
+        name <- sub("=.*$", "", name)
       }
       ## remove spaces
-      names <- gsub("[[:space:]]", "", names)
-      ## put commas in parentheses back
-      names_vec <-
-        c(names_vec,
-          unlist(strsplit(names, '[([][^)\\]]+,(*SKIP)(*FAIL)|,\\s*', perl=TRUE)))
+      name <- gsub("[[:space:]]", "", name)
+      clean_name <- gsub("[[:space:]]", "", clean_name)
+
+      ## add to vector
+      if (missing(vars)) {
+        names_vec <- c(names_vec, name)
+      } else {
+        names_vec <- c(names_vec, name[clean_name %in% vars])
+      }
     }
   }
-  if (!aux) names_vec <- grep("^__.*_$", names_vec, invert=TRUE, value=TRUE)
+  if (!aux) names_vec <- grep("^__", names_vec, invert=TRUE, value=TRUE)
   return(names_vec)
+}
+
+#' @name get_dims
+#' @title Get dimensions in a LibBi model
+#' @description
+#' Get dimensions contained in a LibBi model and their sizes
+#'
+#' @param model a \code{\link{bi_model}} object
+#' @param type a character vector of one or more types
+#' @return list of dimensions (as names) and their sizes
+#' @export
+get_dims <- function(model, type)
+{
+  dim_lines <-
+    grep(paste0("^[[:space:]]*dim[[:space:]]+[A-z0-9_]+[[:space:]]*",
+                "\\([A-z0-9_]+\\)[[:space:]]*$"), model, value = TRUE)
+  const <- get_const(model)
+
+  retval <- list()
+
+  for (dim_line in dim_lines) {
+    line <-
+      sub(paste0("^[[:space:]]*dim[[:space:]]+([A-z0-9_]+)[[:space:]]*",
+                 "\\(([A-z0-9_]+)\\)[[:space:]]*$"), "\\1|\\2", dim_line)
+    dim_def <- strsplit(line, "\\|")[[1]]
+    if (dim_def[2] %in% names(const)) {
+      retval[[dim_def[1]]] <- const[[dim_def[2]]]
+    } else {
+      try_numeric <- suppressWarnings(as.numeric(dim_def[2]))
+      if (is.na(try_numeric)) {
+        stop("Can't determine size of dimension '", dim_def[1], ": ", dim_def[2])
+      } else {
+        retval[[dim_def[1]]] <- try_numeric
+      }
+    }
+  }
+  return(retval)
+}
+
+#' @name get_const
+#' @title Get constants in a LibBi model
+#' @description
+#' Get constants contained in a LibBi model and their values. This will attempt to evaluate any calculation on the right hand side. Failing that, it will be returned verbatim.
+#'
+#' @param model a \code{\link{bi_model}} object
+#' @return list of constants (as names) and their values
+#' @export
+get_const <- function(model) {
+  const_lines <-
+    grep("^[[:space:]]*const[[:space:]].*=[[:space:]]*[A-z0-9_]+[[:space:]]*$",
+         model, value = TRUE)
+  retval <- list()
+  for (const_line in const_lines) {
+    line <-
+      gsub(" ", "", sub("^[[:space:]]*const[[:space:]]*", "", const_line))
+    assignment <- strsplit(line, "=")[[1]]
+    retval[assignment[1]] <- NA_character_
+    retval[[assignment[[1]]]] <- tryCatch(
+    {
+      eval(parse(text = assignment[2]), envir=NULL, enclos=NULL)
+    },
+    error = function(cond)
+    {
+      assignment[2]
+    })
+  }
+  return(retval)
 }
 
 #' @title Print the lines of a LibBi model
@@ -590,6 +741,7 @@ var_names.bi_model <- function(x, type, dim = FALSE, opt = FALSE,
 #' @keywords internal
 #' @export
 print.bi_model <- function(x, spaces=2, screen=TRUE, ...) {
+  x <- clean_model(x)
   if (screen) {
     cat("bi_model:\n")
     cat("=========\n")
@@ -600,14 +752,8 @@ print.bi_model <- function(x, spaces=2, screen=TRUE, ...) {
     vec <- c()
     indent <- 0
     for (i in seq_along(x)) {
-      if (grepl("\\}", x[i])) {
-        if (indent > 0) {
-          indent <- indent - 1
-        } else {
-          warning("There seems to be a pair of unbalanced braces")
-        }
-      }
-      indent_spaces <- paste(rep(" ", indent * spaces), collapse = "")
+      if (grepl("\\}", x[i])) indent <- indent - 1
+      indent_spaces <- paste(rep(" ", max(0, indent * spaces)), collapse = "")
       vec <- c(vec, paste0(indent_spaces, x[i]))
       if (grepl("\\{", x[i])) {
         indent <- indent + 1
@@ -659,7 +805,7 @@ get_name <- function(x, ...) UseMethod("get_name")
 #' @export
 get_name.bi_model <- function(x, ...) {
   if (length(x) > 0) {
-    name <- gsub("model ", "", gsub("\\{", "", x[1]))
+    name <- gsub("^model[[:space:]]*", "", gsub("\\{", "", x[1]))
     name <- gsub("[[:space:]]*$", "", name)
     name <- gsub("^[[:space:]]*", "", name)
   } else {
@@ -688,9 +834,9 @@ set_name <- function(x, ...) UseMethod("set_name")
 #' @export
 set_name.bi_model <- function(x, name, ...) {
   if (length(x) > 0) {
-    if (grepl("model [[:graph:]]+ \\{", x[1])) {
+    if (grepl("model [[:graph:]]+[[:space:]]*\\{", x[1])) {
       x[1] <-
-        sub("model [[:graph:]]+ \\{", paste0("model ", name, " {"),
+        sub("model [[:graph:]]+[[:space:]]*\\{", paste0("model ", name, " {"),
             x[1])
     } else {
       stop("could not identify model name in first line")
@@ -701,20 +847,18 @@ set_name.bi_model <- function(x, name, ...) {
   clean_model(x)
 }
 
-#' @name Extract.bi_model
-#' @rdname Extract.bi_model
+#' @name Extract_assign.bi_model
+#' @rdname Extract_assign.bi_model
 #' @title Subset and replace model lines
 #' @aliases `[<-.bi_model`
 #' @description
-#' Extracts a subset of lines from the model and, if used with the assignment
-#'   operator, assigns new character strings.
+#' Extracts a subset of lines from the model and assigns new character strings.
 #' @param x A bi_model
 #' @param i A vector of line numbers
 #' @param ... ignored
 #' @examples
 #' model_file_name <- system.file(package="rbi", "PZ.bi")
 #' PZ <- bi_model(filename = model_file_name)
-#' PZ[3:4]
 #' PZ[3:4] <- c("const e = 0.4", "const m_l = 0.05")
 #' @export
 #' @param value A vector of the same length as \code{i}, containing the
@@ -724,4 +868,68 @@ set_name.bi_model <- function(x, name, ...) {
     if (is.null(value)) model_char <- model_char[-i]
     else model_char[i] <- value
     return(clean_model(model_char))
+}
+
+#' @name Extract.bi_model
+#' @rdname Extract.bi_model
+#' @title Subset model lines
+#' @aliases `[.bi_model`
+#' @description
+#' Extracts a subset of lines from the model.
+#' @param x A bi_model
+#' @param i A vector of line numbers
+#' @param ... ignored
+#' @examples
+#' model_file_name <- system.file(package="rbi", "PZ.bi")
+#' PZ <- bi_model(filename = model_file_name)
+#' PZ[3:4]
+#' @export
+`[.bi_model` <-  function(x, i, ...) {
+    model_char <- as.character(x)
+    if (missing(i)) {
+        return(model_char)
+    } else if (any(i >= 0)) {
+        return(model_char[i])
+    } else {
+        return(clean_model(model_char[i]))
+    }
+}
+
+#' @name Equals.bi_model
+#' @rdname Equals.bi_model
+#' @title Check if two models are equal
+#' @aliases `==.bi_model`
+#' @description
+#' Ignores differences in the model name.
+#' @param e1 a \code{\link{bi_model}}
+#' @param e2 a \code{\link{bi_model}}
+#' @param ... ignored
+#' @examples
+#' model_file_name <- system.file(package="rbi", "PZ.bi")
+#' PZ <- bi_model(filename = model_file_name)
+#' PZ == PZ # TRUE
+#' @export
+#' @return value TRUE or FALSE
+`==.bi_model` <- function(e1, e2, ...) {
+  return(length(e1) == length(e2) &&
+           all(get_block(e1, "model")==get_block(e2, "model")))
+}
+
+#' @name Unequals.bi_model
+#' @rdname Unequals.bi_model
+#' @title Check if two models are unequal
+#' @aliases `!=.bi_model`
+#' @description
+#' Ignores differences in the model name.
+#' @param e1 a \code{\link{bi_model}}
+#' @param e2 a \code{\link{bi_model}}
+#' @param ... ignored
+#' @examples
+#' model_file_name <- system.file(package="rbi", "PZ.bi")
+#' PZ <- bi_model(filename = model_file_name)
+#' PZ != PZ # FALSE
+#' @export
+#' @return TRUE or FALSE
+`!=.bi_model` <- function(e1, e2) {
+  return(!(e1 == e2))
 }
