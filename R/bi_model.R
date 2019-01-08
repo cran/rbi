@@ -419,6 +419,7 @@ remove_lines <- function(x, ...) UseMethod("remove_lines")
 #' @param what either a vector of line number(s) to remove, or a vector of blocks to remove (e.g., "parameter")
 #' @param only only remove lines assigning given names (as a vector of character strings)
 #' @param type which types of lines to remove, either "all", "sample" (i.e., lines with a "~") or "assignment" (lines with a "<-" or "=") (default: "all")
+#' @param preserve_shell if TRUE (default: FALSE), preserve the definition of a block even if all lines are removed; this is useful to preserve options passed to a \code{transition} or \code{ode} block
 #' @param ... ignored
 #' @return the updated bi model
 #' @seealso \code{\link{bi_model}}
@@ -428,16 +429,16 @@ remove_lines <- function(x, ...) UseMethod("remove_lines")
 #' PZ <- remove_lines(PZ, 2)
 #' @rdname remove_lines
 #' @export
-remove_lines.bi_model <- function(x, what, only, type=c("all", "assignment", "sample"), ...) {
+remove_lines.bi_model <- function(x, what, only, type=c("all", "assignment", "sample"), preserve_shell=FALSE, ...) {
   if (missing(what)) {
     stop("'what' must be given")
   }
   type <- match.arg(type)
   to_remove <- c()
   if (is.numeric(what)) {
-    to_remove <- what
+    to_remove<- what
   } else if (is.character(what)) {
-    to_remove <- find_block(x, what)
+    to_remove <- find_block(x, what, inner=preserve_shell)
   } else {
     stop("'what' must be a numeric or character vector.")
   }
@@ -459,8 +460,9 @@ remove_lines.bi_model <- function(x, what, only, type=c("all", "assignment", "sa
                        x[to_remove][assign_lines], perl=TRUE)
     assign_vars <- sub("[[:space:]]", "", sub("\\[.*]", "", assign_vars))
     if (!missing(only)) assign_lines <- assign_lines[assign_vars %in% only]
-    if (is.character(what) && length(assign_lines) == length(to_remove) - 2) {
-      assign_lines <- c(1, assign_lines, length(to_remove))
+    if (is.character(what) && !preserve_shell &&
+        length(assign_lines) == length(to_remove) - 2) {
+        assign_lines <- c(1, assign_lines, length(to_remove))
     }
     to_remove <- to_remove[assign_lines]
   }
@@ -524,8 +526,9 @@ find_block <- function(x, ...) UseMethod("find_block")
 #' @keywords internal
 #' @param x a \code{\link{bi_model}} object
 #' @param name of the block to find
+#' @param inner only return the inner part of the block (not the block definition)
 #' @rdname find_block
-find_block.bi_model <- function(x, name) {
+find_block.bi_model <- function(x, name, inner=FALSE) {
   lines <- as.character(x)
   sub_regexp <- paste0("^[[:space:]]*(sub[[:space:]]+)?[[:space:]]*", name, "([[:space:]][a-zA-Z0-9_\\.]+)?[[:space:]]*(\\(.*\\))?[[:space:]]*\\{")
   sub_line <- grep(sub_regexp, lines)
@@ -538,6 +541,7 @@ find_block.bi_model <- function(x, name) {
       braces <- grep("[\\{\\}]", lines[line], value = TRUE)
       open_braces <- open_braces + nchar(gsub("\\}", "", lines[line])) - nchar(gsub("\\{", "", lines[line]))
     }
+    if (inner) return((sub_line+1):(line-1))
     return(sub_line:line)
   } else {
     return(integer(0))
@@ -555,21 +559,16 @@ get_block <- function(x, ...) UseMethod("get_block")
 #' @return a character vector of the lines in the block
 #' @param x a \code{\link{bi_model}} object
 #' @param name name of the block
+#' @param shell if TRUE (default:FALSE), will return the shell (i.e., the definition of the block) as well as content; this is useful, e.g., to see options passed to a \code{transition} or \code{ode} block
 #' @param ... ignored
 #' @rdname get_block
 #' @export
-get_block.bi_model <- function(x, name, ...) {
+get_block.bi_model <- function(x, name, shell=FALSE, ...) {
   if (missing(name)) stop("The name of the block must be provided as 'name'")
   block <- find_block(x, name)
   if (length(block) > 0) {
     lines <- as.character(x[block])
-    lines[1] <-
-      sub(paste0("^[[:space:]]*(sub[[:space:]]+)?", name, "(\\{|[[:space:]][^{]*\\{)"), "", lines[1])
-    lines[length(lines)] <- sub("\\}[[:space:]]*$", "", lines[length(lines)])
-    empty_lines <- grep("^[[:space:]]*$", lines)
-    if (length(empty_lines) > 0) {
-      lines <- lines[-empty_lines]
-    }
+    if (!shell) lines <- lines[-c(1, length(lines))]
     return(lines)
   } else {
     return(character(0))
@@ -707,8 +706,7 @@ get_dims <- function(model, type)
 #' @export
 get_const <- function(model) {
   const_lines <-
-    grep("^[[:space:]]*const[[:space:]].*=[[:space:]]*[A-z0-9_]+[[:space:]]*$",
-         model, value = TRUE)
+    grep("^[[:space:]]*const[[:space:]].*=.*[^[:space:]]", model, value = TRUE)
   retval <- list()
   for (const_line in const_lines) {
     line <-
