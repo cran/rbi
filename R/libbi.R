@@ -390,10 +390,10 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
                              stderr_line_callback = cb_stderr),
                finally = close(con))
     if (p$status != 0) {
-      error_lines <- strsplit(p$stderr,  "\n")[[1]]
+      error_lines <- strsplit(p$stderr, "\n")[[1]]
       error_msg <-
         sub("^[[:space:]]+", "", ## remove leading spaces
-            sub("\\n$", "", grep("(Error|failed\\.$)", error_lines, value=TRUE)))
+            sub("\\n$", "", grep("(configure: error|Error| failed\\.$)", error_lines, value=TRUE)))
       stop_msg <-
         paste0("LibBi terminated with \"", error_msg[1], "\".")
       if (length(x$log_file_name) > 0) {
@@ -562,7 +562,7 @@ attach_data <- function(x, ...) UseMethod("attach_data")
 #' @description
 #' Adds an (output, obs, etc.) file to a \code{\link{libbi}} object. This is useful to recreate a \code{\link{libbi}} object from the model and output files of a previous run
 #'
-#' The \code{\link{bi_write}} options \code{append} and \code{overwrite} determine what exactly the file will contain at the end of this. If they are both FALSE, any existing file will be ignored. If \code{append} is TRUE, the existing data in the file will be preserved, and any data set passed as \code{data} and not already in the file will be added. If \code{overwrite} is TRUE, existing data in the file will be preserved except for variables that exist in the past \code{data}.
+#' The \code{\link{bi_write}} options \code{append} and \code{overwrite} determine what exactly the file will contain at the end of this. If they are both FALSE (the default), any existing file will be ignored. If \code{append} is TRUE, the existing data in the file will be preserved, and any data set passed as \code{data} and not already in the file will be added. If \code{overwrite} is TRUE, existing data in the file will be preserved except for variables that exist in the passed \code{data}.
 #' @param x a \code{\link{libbi}} object
 #' @param file the type of the file to attach, one of "output", "obs", "input" or "init"
 #' @param data name of the file to attach, or a list of data frames that contain the outputs; it will be assumed that this is already thinned
@@ -1010,11 +1010,14 @@ print_log <- function(x){
 #' This reads in the output file of the \code{\link{libbi}} object (which has been run before) and prints summary information of parameters
 #' @param object a \code{\link{libbi}} object
 #' @param type one of "param" (default), "state", "noise" or "obs", the variable type to summarise
+#' @param quantiles quantiles to calculate (default: quartiles); minimum, median, mean and maximum are always calculated
+#' @param na.rm logical; if true, any \code{na} and \code{NaN}'s are removed before calculations are performed
 #' @param ... ignored
 #' @importFrom data.table data.table setDF rbindlist
 #' @importFrom stats median quantile
 #' @export
-summary.libbi <- function(object, type=c("param", "state", "noise", "obs"), ...){
+summary.libbi <- function(object, type=c("param", "state", "noise", "obs"),
+                          quantiles=c(0.25, 0.75), na.rm=FALSE, ...){
   type <- match.arg(type)
   vars <- c(bi_read(object, type=type))
 
@@ -1023,18 +1026,34 @@ summary.libbi <- function(object, type=c("param", "state", "noise", "obs"), ...)
   summary_table <- rbindlist(lapply(names(vars), function(var) {
     object <- vars[[var]]
     summarise_columns <- setdiff(colnames(object), c("np", "value"))
-    dt <- data.table(object)[, list(var=var,
-                                    `Min.`=min(value),
-                                    `1st Qu.`=quantile(value, 0.25),
-                                    `Median`=median(value),
-                                    `Mean`=mean(value),
-                                    `3rd Qu.`=quantile(value, 0.75),
-                                    `Max.`=max(value)), by=summarise_columns]
-    dt <- dt[, c("var", setdiff(colnames(dt), "var")), with=F]
-    setnames(dt, "var", type)
-    dt
+    dt <-
+      data.table(object)[, c(list(var=var,
+                                  `Min.`=min(value, na.rm=na.rm),
+                                  `Mean`=mean(value, na.rm=na.rm),
+                                  `Max.`=max(value, na.rm=na.rm)),
+                             as.list(quantile(value,
+                                              union(0.5, quantiles),
+                                              na.rm=na.rm))),
+                         by=summarise_columns]
   }))
+  ## reorder table
+  numeric_columns <-
+    c("Min.",
+      paste0(quantiles[quantiles<0.5] * 100, "%"),
+      "50%", "Mean",
+      paste0(quantiles[quantiles>0.5] * 100, "%"),
+      "Max.")
+  summary_table <-
+    summary_table[, c("var",
+                      setdiff(colnames(summary_table),
+                              c("var", numeric_columns)),
+                      numeric_columns), with=FALSE]
+  setnames(summary_table,
+           c("25%", "50%", "75%"),
+           c( "1st Qu.", "Median", "3rd Qu."),
+           skip_absent=TRUE)
   setDF(summary_table)
+
   return(summary_table)
 }
 
@@ -1097,26 +1116,36 @@ predict.libbi <- function(x, ...) {
 ##' Sample observations from a LibBi model that has been run
 ##'
 ##' @param x a \code{\link{libbi}} object
+##' @param ... any options to pass to LibBi
 ##' @return the original \code{\link{libbi}} object with added variables in the output file for sampled observations
 ##' @author Sebastian Funk
 ##' @export
-sample_obs <- function(x) {
+sample_obs <- function(x, ...) {
   if (!("libbi" %in% class(x))) {
     stop("'x' must be a 'libbi' object")
   }
   out <- bi_read(x)
   out$clock <- NULL ## we don't want to overwrite the clock later
   ## remove transition
-  sample_model <- remove_lines(x$model, "transition")
+  sample_model <- remove_lines(x$model, "transition", preserve_shell=TRUE)
   ## convert input states to inputs
   sample_model <- to_input(sample_model, names(out))
   ## turn outputs into inputs
   pr <- attach_data(x, file="input", out, append=TRUE)
   ## predict
-  pr <- predict(pr, model=sample_model, with="transform-obs-to-state")
+  pr$options[["noutputs"]] <- NULL
+  pr <- predict(pr, model=sample_model,
+                with=c("output-at-obs", "transform-obs-to-state"), ...)
   ## attach outputs back
   pr <- attach_data(pr, "output", data=out, append=TRUE)
   pr$options[["input-file"]] <- x$options[["input-file"]]
+  pr$options[["noutputs"]] <- x$options[["noutputs"]]
+  pr$options[["with-output-at-obs"]] <- x$options[["with-output-at-obs"]]
+  pr$options[["without-output-at-obs"]] <- x$options[["without-output-at-obs"]]
+  pr$options[["with-transform-obs-to-state"]] <-
+      x$options[["with-transform-obs-to-state"]]
+  pr$options[["without-transform-obs-to-state"]] <-
+      x$options[["without-transform-obs-to-state"]]
   pr$model <- x$model
 
   return(pr)
@@ -1167,7 +1196,11 @@ join.libbi <- function(x, ...) {
 logLik.libbi <- function(object, ...){
   assert_files(object)
   res <- bi_read(object)
-  return(res$loglikelihood$value)
+  if (is.vector(res$loglikelihood)) {
+      return(res$loglikelihood)
+  } else {
+      return(res$loglikelihood$value)
+  }
 }
 
 #' @export
