@@ -23,8 +23,7 @@
 #' @param burn number of initial samples to discard; default: 0
 #' @param missval.threshold deprecated; use missval_threshold instead
 #' @param init.to.param deprecated; use init_to_param instead
-#' @return list of data frames and/or numbers
-#' @inheritParams bi_open
+#' @return a list of data frames and/or numbers that have been read
 #' @importFrom ncdf4 nc_close ncvar_get
 #' @importFrom data.table setkeyv setnames setDF is.data.table :=
 #' @importFrom reshape2 melt
@@ -241,7 +240,7 @@ bi_read <- function(x, vars, dims, model, type, file, missval_threshold, coord_d
               merge_values <- apply(merge_values, 2, as.integer)
               mav <- cbind(merge_values, mav)
             } else {
-              mav_merge <- data.table::data.table(data.table::melt(merge_values, varnames = matching_dims, value.name = var_type))
+              mav_merge <- data.table::data.table(reshape2::melt(merge_values, varnames = matching_dims, value.name = var_type))
               mav <- merge(mav_merge, mav, by = unname(matching_dims))
             }
           } else if (length(matching_vars) > 1) {

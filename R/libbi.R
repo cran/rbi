@@ -14,7 +14,7 @@
 #' @param dims any named dimensions, as list of character vectors
 #' @param use_cache logical; whether to use the cache (default: true)
 #' @param ... options passed to \code{\link{run.libbi}}
-#' @return a \code{\link{libbi}} object
+#' @return a new \code{\link{libbi}} object
 #' @examples
 #' bi_object <- libbi(model = system.file(package="rbi", "PZ.bi"))
 #' @seealso \code{\link{sample}}, \code{\link{filter}}, \code{\link{optimise}}, \code{\link{rewrite}}
@@ -37,7 +37,6 @@ libbi <- function(model, path_to_libbi, dims, use_cache=TRUE, ...){
                    path_to_libbi=path_to_libbi,
                    model=NULL,
                    model_file_name=character(0),
-                   working_folder=character(0),
                    dims=libbi_dims,
                    time_dim=character(0),
                    coord_dims=list(),
@@ -86,9 +85,9 @@ run <- function(x, ...) UseMethod("run")
 #' @param obs observations of the model, either supplied as a list of values and/or data frames, or a (netcdf) file name, or a \code{\link{libbi}} object which has been run (in which case the output of that run is used as observations)
 #' @param time_dim The time dimension in any R objects that have been passed (\code{init}, \code{input}) and \code{obs}); if NULL (default), will be guessed from the given observation
 #' @param coord_dims The coord dimension(s) in any \code{obs} R objects that have been passed; if NULL (default), will be guessed from the given observation file given
-#' @param working_folder path to a folder from which to run \code{LibBi}; default to a temporary folder.
+#' @param working_folder deprecated; path to a folder from which to run \code{LibBi}; default to a temporary folder. Use the \code{build_dir} option instead, which will be translated into the \code{--build-dir} option of LibBi instead
 #' @param output_all deprecated; if set to TRUE, all parameters, states and observations will be saved; good for debugging
-#' @param sample_obs deprecated; if set to TRUE, will sample observations
+#' @param sample_obs deprecated; if set to TRUE, will sample observations. Use the \code{sample_obs} function instead.
 #' @param thin any thinning of MCMC chains (1 means all will be kept, 2 skips every other sample etc.); note that \code{LibBi} itself will write all data to the disk. Only when the results are read in with \code{\link{bi_read}} will thinning be applied.
 #' @param output_every real; if given, \code{noutputs} will be set so that there is output every \code{output_every} time steps; if set to 0, only generate an output at the final time
 #' @param chain logical; if set to TRUE and \code{x} has been run before, the previous output file will be used as \code{init} file, and \code{init-np} will be set to the last iteration of the previous run (unless target=="prediction"). This is useful for running inference chains.
@@ -98,11 +97,11 @@ run <- function(x, ...) UseMethod("run")
 #' @seealso \code{\link{libbi}}
 #' @examples
 #' bi_object <- libbi(model = system.file(package="rbi", "PZ.bi"))
-#' \dontrun{
+#' \donttest{
 #'   run(bi_object, client="sample", target="prior")
 #'   bi_file_summary(bi_object)
 #' }
-#' @return a \code{\link{libbi}} object, except if \code{client} is 'rewrite',  in which case a \code{\link{bi_model}} object will be returned
+#' @return an updated \code{\link{libbi}} object, except if \code{client} is 'rewrite', in which case invisible NULL will be returned but the rewritten model code printed
 #' @importFrom ncdf4 nc_open nc_close ncvar_rename
 #' @importFrom stats runif
 #' @importFrom processx run
@@ -185,10 +184,26 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
   }
   if (length(libbi_seed) > 0) new_options[["seed"]] <- libbi_seed
 
-  ## check if 'model-file' is contained in any options
-  all_options <- option_list(getOption("libbi_args"), config_file_options, x$options, new_options)
+  if (!missing(working_folder)) {
+    warning("'working_folder' is deprecated. Use 'build_dir'.")
+    if ("build-dir" %in% names(new_options)) {
+      stop("Can't specify working folder and build_dir")
+    } else {
+      new_options[["build-dir"]] <- absolute_path(working_folder)
+    }
+  }
 
-  if ("model-file" %in% names(all_options)) {
+  if (is.null(getOption("libbi_args"))) {
+    libbi_option_args <- list()
+  } else {
+    libbi_option_args <- getOption("libbi_args")
+  }
+
+  all_options <-
+    option_list(libbi_option_args, config_file_options, x$options, new_options)
+
+   ## check if 'model-file' is contained in any options
+   if ("model-file" %in% names(all_options)) {
     if (is_empty(model)) {
       model <- bi_model(all_options[["model-file"]])
       warning("A model has been passed via 'model-file'. It will be stored in the libbi object internally. If the file passed as 'model-file' is changed, 'model-file' needs to be passed again.")
@@ -208,14 +223,15 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
     stop("No model specified")
   }
 
-  if (!missing(working_folder)) {
-    x$working_folder <- absolute_path(working_folder)
-  } else if (length(x$working_folder) == 0) {
+  if ("build-dir" %in% names(all_options)) {
+    x$options[["build-dir"]] <- all_options[["build-dir"]]
+  } else {
     x <- create_working_folder(x)
   }
 
   x$model_file_name <-
-    file.path(absolute_path(x$working_folder), paste0(get_name(x$model), ".bi"))
+    file.path(absolute_path(x$options[["build-dir"]]),
+              paste0(get_name(x$model), ".bi"))
 
   args <- match.call()
 
@@ -299,7 +315,7 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
   }
 
   all_options <-
-    option_list(getOption("libbi_args"), config_file_options,
+    option_list(libbi_option_args, config_file_options,
                 x$options, new_options)
 
   if (length(log_file_name) == 1 && log_file_name == "") {
@@ -308,7 +324,7 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
 
   if (!x$user_log_file && length(log_file_name) == 0) {
     x$log_file_name <- tempfile(pattern="output", fileext=".txt",
-                                tmpdir=absolute_path(x$working_folder))
+                                tmpdir=absolute_path(all_options[["build-dir"]]))
     x$user_log_file <- FALSE
   } else if (length(log_file_name) > 0) {
     x$log_file_name <- absolute_path(filename=log_file_name, dirname=getwd())
@@ -332,7 +348,7 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
       if (!("output-file" %in% names(all_options))) {
         x$output_file_name <-
           tempfile(pattern=paste(get_name(x$model), "output", sep = "_"),
-                   fileext=".nc", tmpdir=absolute_path(x$working_folder))
+                   fileext=".nc", tmpdir=absolute_path(all_options[["build-dir"]]))
       } else {
         x$output_file_name <- absolute_path(all_options[["output-file"]], getwd())
       }
@@ -384,7 +400,7 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
     if (!(client == "rewrite" && !debug)) cb_stdout(x$command)
     p <-
       tryCatch(processx::run(command=x$path_to_libbi, args=c(client, run_args),
-                             error_on_status=FALSE, wd=x$working_folder,
+                             error_on_status=FALSE, wd=all_options[["build-dir"]],
                              spinner=verbose,
                              stdout_line_callback = cb_stdout,
                              stderr_line_callback = cb_stderr),
@@ -436,7 +452,7 @@ sample <- function(x, ...) UseMethod("sample")
 #' For the help page of the base R \code{sample} function, see \code{\link[base]{sample}}.
 #' @param x a \code{\link{libbi}} or \code{\link{bi_model}} object, or the name of a file containing the model
 #' @param ... options to be passed to \code{\link{run.libbi}}
-#' @return a \code{\link{libbi}} object
+#' @return an updated \code{\link{libbi}} object
 #' @export
 sample.libbi <- function(x, ...){
   run.libbi(x, client="sample", ...)
@@ -464,7 +480,7 @@ filter <- function(x, ...) UseMethod("filter")
 #' For the help page of the base R \code{filter} function, see \code{\link[stats]{filter}}.
 #' @param x a \code{\link{libbi}} or \code{\link{bi_model}} object, or the name of a file containing the model
 #' @param ... options to be passed to \code{\link{run.libbi}}
-#' @return a \code{\link{libbi}} object
+#' @return an updated \code{\link{libbi}} object
 #' @export
 filter.libbi <- function(x, ...){
   run.libbi(x, client="filter", ...)
@@ -492,7 +508,7 @@ optimise <- function(x, ...) UseMethod("optimise")
 #' For the help page of the base R \code{optimise} function, see \code{\link[stats]{optimise}}.
 #' @param x a \code{\link{libbi}} or \code{link{bi_model}} object, or the name of a file containing the model
 #' @param ... options to be passed to \code{\link{run.libbi}}
-#' @return a \code{\link{libbi}} object
+#' @return an updated \code{\link{libbi}} object
 #' @export
 optimise.libbi <- function(x, ...){
   run.libbi(x, client="optimise", ...)
@@ -519,7 +535,7 @@ rewrite <- function(x, ...) UseMethod("rewrite")
 #' If \code{x} is given as a 'bi_model', a \code{\link{libbi}} object will be created from the model
 #' @param x a \code{\link{libbi}} or \code{\link{bi_model}} object, or the name of a file containing the model
 #' @param ... options to be passed to \code{\link{run.libbi}}
-#' @return a \code{\link{bi_model}} object
+#' @return a re-written \code{\link{bi_model}} object
 #' @export
 rewrite.libbi <- function(x, ...){
   run.libbi(x, client="rewrite", ...)
@@ -542,7 +558,7 @@ simulate <- function(x, ...) UseMethod("simulate")
 #' If \code{x} is given as a 'bi_model', a \code{\link{libbi}} object will be created from the model
 #' @param x a \code{\link{libbi}} or \code{\link{bi_model}} object, or the name of a file containing the model
 #' @param ... options to be passed to \code{\link{run.libbi}}
-#' @return a \code{\link{bi_model}} object
+#' @return an updated \code{\link{bi_model}} object
 #' @export
 simulate.libbi <- function(x, ...){
     run.libbi(x, client="sample", target="joint", ...)
@@ -570,6 +586,7 @@ attach_data <- function(x, ...) UseMethod("attach_data")
 #' @param quiet if TRUE, will suppress the warning message normally given if replace=TRUE and the file exists already
 #' @param ... any options to \code{\link{bi_write}} (e.g., 'time_dim')
 #' @inheritParams bi_write
+#' @return an updated \code{\link{libbi}} object
 #' @examples
 #' bi <- libbi(model = system.file(package="rbi", "PZ.bi"))
 #' example_output <- bi_read(system.file(package="rbi", "example_output.nc"))
@@ -589,7 +606,7 @@ attach_data.libbi <- function(x, file, data, in_place=FALSE, append=FALSE, overw
   } else {
     target_file_name <-
       tempfile(pattern=paste(get_name(x$model), file, sep = "_"),
-               fileext=".nc", tmpdir=absolute_path(x$working_folder))
+               fileext=".nc", tmpdir=absolute_path(x$options[["build-dir"]]))
     if (length(existing_file_name) == 1 && (append || overwrite)) {
       file.copy(existing_file_name, target_file_name)
     }
@@ -645,9 +662,9 @@ attach_data.libbi <- function(x, file, data, in_place=FALSE, append=FALSE, overw
     } else {
       file.copy(source_file_name, target_file_name)
     }
-  } else if ("list" %in% class(data)) {
+  } else if ("list" %in% class(data) && length(data) > 0) {
     vars <- data
-  } else if (is.null(data)) {
+  } else { ## can't do anything with given 'data'
     if (file == "output") {
       x$run_flag <- FALSE
       x$output_file_name <- character(0)
@@ -718,7 +735,7 @@ attach_file <- function(x, ...) UseMethod("attach_file")
 #' @param data name of the file to attach, or a list of data frames that contain the outputs
 #' @param force attach the file even if one like this already exists in the libbi object
 #' @param ... any options to \code{\link{bi_write}} (e.g., 'time_dim')
-#' @inheritParams bi_open
+#' @return an updated \code{\link{libbi}} object
 #' @keywords internal
 #' @export
 attach_file.libbi <- function(x, file, data, force=FALSE, ...){
@@ -740,7 +757,7 @@ attach_file.libbi <- function(x, file, data, force=FALSE, ...){
     if (is.null(target_file_name)) {
       target_file_name <-
         tempfile(pattern=paste(get_name(x$model), file, sep = "_"),
-                 fileext=".nc", tmpdir=absolute_path(x$working_folder))
+                 fileext=".nc", tmpdir=absolute_path(x$options[["build-dir"]]))
     }
 
     write_opts <- list(filename = target_file_name, variables = data)
@@ -784,6 +801,7 @@ save_libbi <- function(x, ...) UseMethod("save_libbi")
 #' @param split Logical, defaults to \code{FALSE}. Should the objects from the
 #'  \code{LibBi} run be saved separately in a folder.
 #' @param ... any options to \code{\link{saveRDS}}
+#' @return the return value of \code{saveRDS}, i.e. NULL invisibly
 #' @export
 save_libbi.libbi <- function(x, name, supplement, split = FALSE, ...) {
   if (missing(name)) {
@@ -820,6 +838,7 @@ save_libbi.libbi <- function(x, name, supplement, split = FALSE, ...) {
     }
   }
 
+  options[["build-dir"]] <- NULL
   save_obj[["options"]] <- options
 
   save_obj[["log"]] <- character(0)
@@ -860,7 +879,7 @@ save_libbi.libbi <- function(x, name, supplement, split = FALSE, ...) {
 #'
 #' @param name name of the RDS file(s) to read
 #' @param ... any extra options to pass to \code{\link{libbi}} when creating the new object
-#' @return a \code{\link{libbi}} object
+#' @return a new \code{\link{libbi}} object
 #' @export
 read_libbi <- function(name, ...) {
   if (missing(name)) {
@@ -914,6 +933,7 @@ read_libbi <- function(name, ...) {
     }
   }
 
+  libbi_options[["build-dir"]] <- NULL
   new_obj <- do.call(libbi, libbi_options)
 
   ## write output file
@@ -941,10 +961,11 @@ read_libbi <- function(name, ...) {
 #' @param verbose logical; if TRUE, locations of files and working folder should be printed
 #' @param ... ignored
 #' @rdname print
+#' @return nothing (invisible NULL)
 print.libbi <- function(x, verbose=FALSE, ...){
   cat("Wrapper around LibBi\n")
   if (verbose) {
-    cat("* path to working folder:", x$working_folder, "\n")
+    cat("* path to working folder:", x$options[["build-dir"]], "\n")
     cat("* path to model file:", x$model_file_name, "\n")
     if (length(x$output_file_name) > 0) {
       cat("* path to output_file:", x$output_file_name, "\n")
@@ -984,6 +1005,7 @@ print.libbi <- function(x, verbose=FALSE, ...){
 #' This is useful for diagnosis after a \code{\link{libbi}} run
 #' @param x a \code{\link{libbi}} object, or the name of the log file of a \code{\link{libbi}} run.
 #' @rdname print_log
+#' @return nothing (invisible NULL)
 print_log <- function(x){
   if ("libbi" %in% class(x)) {
     file_name <- x$log_file_name
@@ -1016,6 +1038,7 @@ print_log <- function(x){
 #' @importFrom data.table data.table setDF rbindlist
 #' @importFrom stats median quantile
 #' @export
+#' @return nothing (invisible NULL)
 summary.libbi <- function(object, type=c("param", "state", "noise", "obs"),
                           quantiles=c(0.25, 0.75), na.rm=FALSE, ...){
   type <- match.arg(type)
@@ -1067,6 +1090,7 @@ assert_files <- function(x, ...) UseMethod("assert_files")
 #' @param x a \code{\link{libbi}} object
 #' @param ... ignored
 #' @keywords internal
+#' @return nothing (invisible NULL); an error will be thrown if there is a problem
 assert_files.libbi <- function(x, ...)
 {
     if (!x$run_flag) {
@@ -1109,9 +1133,15 @@ predict <- function(x, ...) UseMethod("predict")
 #' @export
 #' @param x a \code{\link{libbi}} object
 #' @param ... any arguments to be passed to \code{\link{sample}}
+#' @return an updated \code{\link{libbi}} object
 predict.libbi <- function(x, ...) {
   sample(x, target="prediction", ...)
 }
+#' @export
+predict.default <- function(x, ...){
+  stats::predict(x, ...)
+}
+
 
 ##' Sample observations from a LibBi model that has been run
 ##'
@@ -1128,18 +1158,14 @@ sample_obs <- function(x, ...) {
   out$clock <- NULL ## we don't want to overwrite the clock later
   ## remove transition
   sample_model <- remove_lines(x$model, "transition", preserve_shell=TRUE)
-  ## convert input states to inputs
-  sample_model <- to_input(sample_model, names(out))
   ## turn outputs into inputs
   pr <- attach_data(x, file="input", out, append=TRUE)
   ## predict
-  pr$options[["noutputs"]] <- NULL
   pr <- predict(pr, model=sample_model,
                 with=c("output-at-obs", "transform-obs-to-state"), ...)
   ## attach outputs back
   pr <- attach_data(pr, "output", data=out, append=TRUE)
   pr$options[["input-file"]] <- x$options[["input-file"]]
-  pr$options[["noutputs"]] <- x$options[["noutputs"]]
   pr$options[["with-output-at-obs"]] <- x$options[["with-output-at-obs"]]
   pr$options[["without-output-at-obs"]] <- x$options[["without-output-at-obs"]]
   pr$options[["with-transform-obs-to-state"]] <-
@@ -1161,6 +1187,7 @@ join <- function(x, ...) UseMethod("join")
 #' @export
 #' @param x a \code{\link{libbi}} object
 #' @param ... ignored
+#' @return an joined \code{\link{libbi}} object
 join.libbi <- function(x, ...) {
   files_to_join <- list(...)
   output <- bi_read(x)
@@ -1247,11 +1274,11 @@ update.default <- function(x, ...){
 #' @return a \code{\link{libbi}} object with updated working folder
 #' @keywords internal
 create_working_folder <- function(x) {
-  x$working_folder <- tempfile(pattern=paste(get_name(x$model)))
-  dir.create(x$working_folder)
+  x$options[["build-dir"]] <- tempfile(pattern=paste(get_name(x$model)))
+  dir.create(x$options[["build-dir"]])
   ## make sure temporary folder gets deleted upon garbage collection
   x$.gc_env <- new.env() ## dummy environment
-  x$.gc_env$folder <- x$working_folder
+  x$.gc_env$folder <- x$options[["build-dir"]]
   reg.finalizer(x$.gc_env, function(env) {
     unlink(env$folder, recursive=TRUE)
   }, onexit=TRUE)

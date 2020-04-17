@@ -8,7 +8,8 @@
 #'     from \code{bi_read})
 #' @param np iteration to extract; if set to "last", the last sample will be extracted. If not given a random sample will be extracted
 #' @param ... parameters to \code{bi_read} (e.g., dimensions)
-#' @return list of parameters and trajectories
+#' @return a list of data frames or numeric vectors containing parameters and
+#' trajectories  
 #' @export
 extract_sample <- function(x, np, ...) {
 
@@ -20,18 +21,20 @@ extract_sample <- function(x, np, ...) {
     stop("'x' must be a 'libbi' object or a file name or a list of data frames.")
   }
 
-  max_np <- max(vapply(samples[setdiff(names(samples), "clock")], function (y) {
-    if (is.data.frame(y) && "np" %in% colnames(y)) {
-      max(y$np)
-    } else {
-      0
-    }
-  }, 0))
+  if (length(samples) > 0) {
+    max_np <- max(vapply(samples[setdiff(names(samples), "clock")], function (y) {
+      if (is.data.frame(y) && "np" %in% colnames(y)) {
+        max(y$np)
+      } else {
+        0
+      }
+    }, 0))
 
-  if (missing(np)) np <- sample(seq_len(max_np), 1)
-  find_np <- ifelse(tolower(np) == "last", max_np, np)
-  if (find_np > max_np) {
-    stop("np requested greater than the maximum ", max_np)
+    if (missing(np)) np <- sample(seq_len(max_np), 1)
+    find_np <- ifelse(tolower(np) == "last", max_np, np)
+    if (find_np > max_np) {
+      stop("np requested greater than the maximum ", max_np)
+    }
   }
 
   ret <- lapply(samples[setdiff(names(samples), "clock")], function(y) {
