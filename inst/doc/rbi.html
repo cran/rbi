@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Sebastian Funk" />
+
+
+<title>Introduction to rbi</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Introduction to rbi</h1>
+<h4 class="author">Sebastian Funk</h4>
+
+
+
+<p>This vignette gives an introduction to using <strong>rbi</strong>.
+For the best viewing experience, use the <a href="https://sbfnk.github.io/rbi/articles/introduction.html">version on
+the rbi website</a>.</p>
+<p><a href="https://github.com/sbfnk/rbi">rbi</a> is an <code>R</code>
+interface to <a href="https://libbi.org">LibBi</a>, a library for
+Bayesian inference with state-space models using high-performance
+computer hardware.</p>
+<p>The package has been tested on macOS and Linux. It requires a working
+installation of <strong>LibBi</strong>. On macOS, this is easiest done
+using the <code>brew</code> command: Install <a href="https://brew.sh">Homebrew</a>, then issue the following command
+(using a command shell, i.e. Terminal or similar):</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">brew</span> install libbi</span></code></pre></div>
+<p>On linux, follow the <a href="https://github.com/lawmurray/LibBi/blob/master/INSTALL_LINUX.md">instructions</a>
+provided with LibBi.</p>
+<p>If you have any trouble installing <strong>LibBi</strong> you can get
+help on the <a href="https://groups.google.com/forum/#!forum/libbi-users">LibBi
+Users</a> mailing list.</p>
+<p>The path to the <code>libbi</code> script can be passed as an
+argument to <strong>rbi</strong>, otherwise the package tries to find it
+automatically using the <code>which</code> linux/unix command.</p>
+<p>If you just want to process the output from <strong>LibBi</strong>,
+then you do not need to have <strong>LibBi</strong> installed.</p>
+<div id="installation" class="section level1">
+<h1>Installation</h1>
+<p>The easiest way to install the latest stable version of
+<strong>rbi</strong> is via CRAN.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;rbi&quot;</span>)</span></code></pre></div>
+<p>Alternatively, the current development version can be installed using
+the <code>remotes</code> package</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;sbfnk/rbi&quot;</span>)</span></code></pre></div>
+</div>
+<div id="loading-the-package" class="section level1">
+<h1>Loading the package</h1>
+<p>Use</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;rbi&quot;</span>)</span></code></pre></div>
+<p>to load the package.</p>
+</div>
+<div id="getting-started" class="section level1">
+<h1>Getting started</h1>
+<p>The main computational engine and model grammar behind
+<strong>rbi</strong> is provided by <strong>LibBi</strong>. The <a href="https://libbi.org/docs/LibBi-Manual.pdf">LibBi manual</a> is a
+good place to start for finding out everything there is to know about
+<strong>LibBi</strong> models and inference methods.</p>
+<p>The <strong>rbi</strong> package mainly provides two classes:
+<code>bi_model</code> and <code>libbi</code>. The <code>bi_model</code>
+class is used to load, view and manipulate <strong>LibBi</strong> model
+files. The <code>libbi</code> class is used to run LibBi and perform
+inference.</p>
+<p>The package also provides two methods for interacting with the <a href="https://www.unidata.ucar.edu/software/netcdf/">NetCDF</a> files
+used by <strong>LibBi</strong>, <code>bi_read</code> and
+<code>bi_write</code>. Lastly, it provides a <code>get_traces</code>
+function to analyse Markov-chain Monte Carlo (MCMC) traces using the <a href="https://cran.r-project.org/package=coda">coda</a> package.</p>
+</div>
+<div id="the-bi_model-class" class="section level1">
+<h1>The <code>bi_model</code> class</h1>
+<p>As an example, we consider a simplified version of the SIR model
+discussed in <a href="https://arxiv.org/abs/1405.4081">Del Moral et
+al. (2014)</a>. This is included with the <strong>rbi</strong> package
+and can be loaded with</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>model_file <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="at">package =</span> <span class="st">&quot;rbi&quot;</span>, <span class="st">&quot;SIR.bi&quot;</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>sir_model <span class="ot">&lt;-</span> <span class="fu">bi_model</span>(model_file) <span class="co"># load model</span></span></code></pre></div>
+<p>Other ways of implementing a (deterministic or stochastic) SIR model
+can be found in the <a href="idd_models.html">collection of SIR models
+for LibBi</a>, where you also find how to load them into a
+<code>bi_model</code> object, e.g. <code>sir_model</code>. Feel free to
+run the commands below with different versions of the model.</p>
+<p>The <code>sir_model</code> object now contains the model, which can
+be displayed with</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>sir_model</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt; bi_model:</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; =========</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt;  1: model SIR {</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt;  2:   const h = 7</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt;  3:   const N = 1000</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt;  4:   const d_infection = 14</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt;  5:   noise n_transmission</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt;  6:   noise n_recovery</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt;  7:   state S</span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt;  8:   state I</span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt;  9:   state R</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt; 10:   state Z</span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt; 11:   obs Incidence</span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; 12:   param p_rep</span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt; 13:   param p_R0</span></span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#&gt; 14:   sub parameter {</span></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co">#&gt; 15:     p_rep ~ uniform(0,1)</span></span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co">#&gt; 16:     p_R0 ~ uniform(1,3)</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a><span class="co">#&gt; 17:   }</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a><span class="co">#&gt; 18:   sub initial {</span></span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a><span class="co">#&gt; 19:     S &lt;- N - 1</span></span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a><span class="co">#&gt; 20:     I &lt;- 1</span></span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a><span class="co">#&gt; 21:     R &lt;- 0</span></span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a><span class="co">#&gt; 22:     Z &lt;- 1</span></span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a><span class="co">#&gt; 23:   }</span></span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a><span class="co">#&gt; 24:   sub transition {</span></span>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a><span class="co">#&gt; 25:     n_transmission ~ wiener()</span></span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a><span class="co">#&gt; 26:     n_recovery ~ wiener()</span></span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a><span class="co">#&gt; 27:     Z &lt;- (t_now % 7 == 0 ? 0 : Z)</span></span>
+<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a><span class="co">#&gt; 28:     inline i_beta = p_R0 / d_infection * exp(n_transmission)</span></span>
+<span id="cb6-32"><a href="#cb6-32" tabindex="-1"></a><span class="co">#&gt; 29:     inline i_gamma = 1 / d_infection * exp(n_recovery)</span></span>
+<span id="cb6-33"><a href="#cb6-33" tabindex="-1"></a><span class="co">#&gt; 30:     ode (alg=&#39;RK4(3)&#39;, h=1e-1, atoler=1e-2, rtoler=1e-5) {</span></span>
+<span id="cb6-34"><a href="#cb6-34" tabindex="-1"></a><span class="co">#&gt; 31:       dS/dt = - i_beta * S * I / N</span></span>
+<span id="cb6-35"><a href="#cb6-35" tabindex="-1"></a><span class="co">#&gt; 32:       dI/dt = i_beta * S * I / N - i_gamma * I</span></span>
+<span id="cb6-36"><a href="#cb6-36" tabindex="-1"></a><span class="co">#&gt; 33:       dR/dt = i_gamma * I</span></span>
+<span id="cb6-37"><a href="#cb6-37" tabindex="-1"></a><span class="co">#&gt; 34:       dZ/dt = i_beta * S * I / N</span></span>
+<span id="cb6-38"><a href="#cb6-38" tabindex="-1"></a><span class="co">#&gt; 35:     }</span></span>
+<span id="cb6-39"><a href="#cb6-39" tabindex="-1"></a><span class="co">#&gt; 36:   }</span></span>
+<span id="cb6-40"><a href="#cb6-40" tabindex="-1"></a><span class="co">#&gt; 37:   sub observation {</span></span>
+<span id="cb6-41"><a href="#cb6-41" tabindex="-1"></a><span class="co">#&gt; 38:     Incidence ~ poisson(p_rep * Z)</span></span>
+<span id="cb6-42"><a href="#cb6-42" tabindex="-1"></a><span class="co">#&gt; 39:   }</span></span>
+<span id="cb6-43"><a href="#cb6-43" tabindex="-1"></a><span class="co">#&gt; 40:   sub proposal_initial {</span></span>
+<span id="cb6-44"><a href="#cb6-44" tabindex="-1"></a><span class="co">#&gt; 41:     S &lt;- N - 1</span></span>
+<span id="cb6-45"><a href="#cb6-45" tabindex="-1"></a><span class="co">#&gt; 42:     I &lt;- 1</span></span>
+<span id="cb6-46"><a href="#cb6-46" tabindex="-1"></a><span class="co">#&gt; 43:     R &lt;- 0</span></span>
+<span id="cb6-47"><a href="#cb6-47" tabindex="-1"></a><span class="co">#&gt; 44:     Z &lt;- 1</span></span>
+<span id="cb6-48"><a href="#cb6-48" tabindex="-1"></a><span class="co">#&gt; 45:   }</span></span>
+<span id="cb6-49"><a href="#cb6-49" tabindex="-1"></a><span class="co">#&gt; 46:   sub proposal_parameter {</span></span>
+<span id="cb6-50"><a href="#cb6-50" tabindex="-1"></a><span class="co">#&gt; 47:     p_rep ~ truncated_gaussian(mean = p_rep, std = 0.03, lower = 0, upper = 1)</span></span>
+<span id="cb6-51"><a href="#cb6-51" tabindex="-1"></a><span class="co">#&gt; 48:     p_R0 ~ truncated_gaussian(mean = p_R0, std = 0.2, lower = 1, upper = 3)</span></span>
+<span id="cb6-52"><a href="#cb6-52" tabindex="-1"></a><span class="co">#&gt; 49:   }</span></span>
+<span id="cb6-53"><a href="#cb6-53" tabindex="-1"></a><span class="co">#&gt; 50: }</span></span></code></pre></div>
+<p>A part of the model can be shown with, for example,</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>sir_model[<span class="dv">35</span><span class="sc">:</span><span class="dv">38</span>]</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;}&quot;                              &quot;}&quot;                             </span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; [3] &quot;sub observation {&quot;              &quot;Incidence ~ poisson(p_rep * Z)&quot;</span></span></code></pre></div>
+<p>or, for example,</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">get_block</span>(sir_model, <span class="st">&quot;parameter&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;p_rep ~ uniform(0,1)&quot; &quot;p_R0 ~ uniform(1,3)&quot;</span></span></code></pre></div>
+<p>To get a list of certain variables, you can use the
+<code>var_names</code> function. For example, to get a list of states,
+you can use</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">var_names</span>(sir_model, <span class="at">type =</span> <span class="st">&quot;state&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;S&quot; &quot;I&quot; &quot;R&quot; &quot;Z&quot;</span></span></code></pre></div>
+<p>There are also various methods for manipulating a model, such as
+<code>remove_lines</code>, <code>insert_line</code>,
+<code>replace_all</code>.</p>
+<p>The <code>fix</code> method fixes a variable to one value. This can
+be useful, for example, to run the deterministic equivalent of a
+stochastic model for testing purposes:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>det_sir_model <span class="ot">&lt;-</span> <span class="fu">fix</span>(sir_model, <span class="at">n_transmission =</span> <span class="dv">0</span>, <span class="at">n_recovery =</span> <span class="dv">0</span>)</span></code></pre></div>
+<p>To get documentation for any of these methods, use the links in the
+documentation for <code>bi_model</code>.</p>
+</div>
+<div id="generating-a-dataset" class="section level1">
+<h1>Generating a dataset</h1>
+<p>First, let’s create a data set from the SIR model.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1001912</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>sir_data <span class="ot">&lt;-</span> <span class="fu">generate_dataset</span>(sir_model, <span class="at">end_time =</span> <span class="dv">16</span> <span class="sc">*</span> <span class="dv">7</span>, <span class="at">noutputs =</span> <span class="dv">16</span>)</span></code></pre></div>
+<p>This simulates the model a single time from time 0 until time 16*7
+(say, 16 weeks with a daily time step), producing 16 outputs (one a
+week). Note that we have specified a random seed to make this document
+reproducible. If you omit the <code>set.seed</code> command or set it to
+a different number, the results will be different even when run with the
+same set of commands. Also note that <em>LibBi</em> compiles the model
+code only the first time it is run. If you run the command above a
+second time, it should run much faster.</p>
+<p>The <code>generate_dataset</code> function returns a
+<code>libbi</code> object:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>sir_data</span></code></pre></div>
+<p>The generated dataset can be viewed and/or stored in a variable using
+<code>bi_read</code>:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>dataset <span class="ot">&lt;-</span> <span class="fu">bi_read</span>(sir_data)</span></code></pre></div>
+<p>The <code>bi_read</code> function takes the name of a NetCDF file or
+a <code>libbi</code> object (in which case it locates the output file)
+and stores the contents in a list of data frames or vectors, depending
+on the dimensionality of the contents. Note that, if no
+<code>working_folder</code> is specified, the model and output files
+will be stored in a temporary folder.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">names</span>(dataset)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>dataset<span class="sc">$</span>p_R0</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>dataset<span class="sc">$</span>Incidence</span></code></pre></div>
+<p>We can visualise the generated incidence data with</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">plot</span>(dataset<span class="sc">$</span>Incidence<span class="sc">$</span>time, dataset<span class="sc">$</span>Incidence<span class="sc">$</span>value)</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">lines</span>(dataset<span class="sc">$</span>Incidence<span class="sc">$</span>time, dataset<span class="sc">$</span>Incidence<span class="sc">$</span>value)</span></code></pre></div>
+</div>
+<div id="the-libbi-class" class="section level1">
+<h1>The <code>libbi</code> class</h1>
+<p>The <code>libbi</code> class manages the interaction with
+<strong>LibBi</strong> such as sampling from the prior or posterior
+distribution. For example, the <code>sir_data</code> object above is of
+type <code>libbi</code>:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">class</span>(sir_data)</span></code></pre></div>
+<p>Th <code>bi_generate_dataset</code> is one particular way of
+generating a <code>libbi</code> object, used only to generate test data
+from a model. The standard way of creating a <code>libbi</code> object
+for Bayesian inference is using the <code>libbi</code> command</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>bi <span class="ot">&lt;-</span> <span class="fu">libbi</span>(sir_model)</span></code></pre></div>
+<p>This initialises a <code>libbi</code> object with the model created
+earlier and assigns it to the variable <code>bi</code>.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="fu">class</span>(bi)</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;libbi&quot;</span></span></code></pre></div>
+<p>Let’s sample from the prior of the SIR model:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>bi_prior <span class="ot">&lt;-</span> <span class="fu">sample</span>(</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>  bi, <span class="at">target =</span> <span class="st">&quot;prior&quot;</span>, <span class="at">nsamples =</span> <span class="dv">1000</span>, <span class="at">end_time =</span> <span class="dv">16</span> <span class="sc">*</span> <span class="dv">7</span>, <span class="at">noutputs =</span> <span class="dv">16</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>)</span></code></pre></div>
+<p>This step calls <strong>LibBi</strong> to sample from the prior
+distribution of the previously specified model, generating 1,000 samples
+and each time running the model for 16 * 7 = 112 time steps and writing
+16 outputs (i.e., every 7 time steps). <strong>LibBi</strong> parses the
+model, creates C++ code, compiles it and run the model. If the model is
+run again, it should do so much quicker because it will use the already
+compiled C++ code to run the model:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>bi_prior <span class="ot">&lt;-</span> <span class="fu">sample</span>(bi_prior)</span></code></pre></div>
+<p>The <code>sample</code> command returns an updated <code>libbi</code>
+object which, in this case, we just assign again to the <code>bi</code>
+object. Any call of <code>sample</code> preserves options passed to the
+previous call of <code>sample</code> and <code>libbi</code>, unless they
+are overwritten by arguments passed to <code>sample</code> (e.g.,
+passing a new <code>nsamples</code> argument). Let’s have a closer look
+at the <code>bi</code> object:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>bi_prior</span></code></pre></div>
+<p>To see even more detail, try</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a><span class="fu">str</span>(bi_prior)</span></code></pre></div>
+<p>We can see the object contains 14 fields, including the model, the
+path to the <code>libbi</code> script, and the command used to run libbi
+(<code>bi$command</code>); the <code>options</code> field contains all
+the options that <strong>LibBi</strong> was called with. This includes
+the ones we passed to <code>sample</code></p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>bi_prior<span class="sc">$</span>options</span></code></pre></div>
+<p>The other fields contain various bits of information about the
+object, including the model used, the command used to run
+<strong>LibBi</strong> (<code>bi$command</code>) and the output file
+name:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>bi_prior<span class="sc">$</span>output_file_name</span></code></pre></div>
+<p>We can get the results of the sampling run using
+<code>bi_read</code></p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a>prior <span class="ot">&lt;-</span> <span class="fu">bi_read</span>(bi_prior<span class="sc">$</span>output_file_name)</span></code></pre></div>
+<p>or with the shorthand</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a>prior <span class="ot">&lt;-</span> <span class="fu">bi_read</span>(bi_prior)</span></code></pre></div>
+<p>which looks at the <code>output_file_name</code> field to read in the
+data. Let’s look at the returned object</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="fu">str</span>(prior)</span></code></pre></div>
+<p>This is a list of 9 objects, 8 representing each of the (noise/state)
+variables and parameters in the file, and one number <code>clock</code>,
+representing the time spent running the model in microseconds.</p>
+<p>We can see that the time-varying variables are represented as data
+frames with three columns: <code>np</code> (enumerating individual
+simulations), <code>time</code> and <code>value</code>. Parameters don’t
+vary in time and just have <code>np</code> and <code>value</code>
+columns.</p>
+</div>
+<div id="fitting-a-model-to-data-using-pmcmc" class="section level1">
+<h1>Fitting a model to data using PMCMC</h1>
+<p>Let’s perform inference using Particle Markov-chain Metropolis
+Hastings (PMMH). The following command will generate 16 * 10,000 =
+160,000 simulations and therefore may take a little while to run (if you
+want to see the samples progress, use <code>verbose=TRUE</code> in the
+<code>sample</code> call).</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a>bi <span class="ot">&lt;-</span> <span class="fu">sample</span>(bi_prior, <span class="at">target =</span> <span class="st">&quot;posterior&quot;</span>, <span class="at">nparticles =</span> <span class="dv">32</span>, <span class="at">obs =</span> sir_data)</span></code></pre></div>
+<p>This samples from the posterior distribution. Remember that options
+are preserved from previous runs (because we passed the <code>bi</code>)
+as first argument, so we don’t need to specify <code>nsamples</code>,
+<code>end_time</code> and <code>noutputs</code> again, unless we want to
+change them. The <code>nparticles</code> option specifies the number of
+particles.</p>
+<p>You can also pass a list of data frames (each element of the list
+corresponding to one observed variable as the <code>obs</code> argument,
+for example</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a>  <span class="at">time =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">7</span>, <span class="dv">14</span>, <span class="dv">21</span>, <span class="dv">28</span>, <span class="dv">35</span>, <span class="dv">42</span>, <span class="dv">49</span>, <span class="dv">56</span>, <span class="dv">63</span>, <span class="dv">70</span>, <span class="dv">77</span>, <span class="dv">84</span>, <span class="dv">91</span>, <span class="dv">98</span>, <span class="dv">105</span>, <span class="dv">112</span>),</span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a>  <span class="at">value =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">6</span>, <span class="dv">2</span>, <span class="dv">26</span>, <span class="dv">99</span>, <span class="dv">57</span>, <span class="dv">78</span>, <span class="dv">57</span>, <span class="dv">15</span>, <span class="dv">9</span>, <span class="dv">4</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">0</span>)</span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a>)</span>
+<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a>bi_df <span class="ot">&lt;-</span> <span class="fu">sample</span>(</span>
+<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a>  bi_prior, <span class="at">target =</span> <span class="st">&quot;posterior&quot;</span>, <span class="at">nparticles =</span> <span class="dv">32</span>, <span class="at">obs =</span> <span class="fu">list</span>(<span class="at">Incidence =</span> df)</span>
+<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a>)</span></code></pre></div>
+<p>Input, init and observation files (see the <a href="https://libbi.org/docs/LibBi-Manual.pdf">LibBi manual</a> for
+details) can be specified using the <code>init</code>,
+<code>input</code>, <code>obs</code> options, respectively. They can
+each be specified either as the name of a NetCDF file containing the
+data, or a <code>libbi</code> object (in which case the output file will
+be taken) or directly via an appropriate <code>R</code> object
+containing the data (e.g., a character vector of length one, or a list
+of data frames or numeric vectors). In the case of the command above,
+<code>init</code> is specified as a list, and <code>obs</code> as a
+<code>libbi</code> object. The <code>Incidence</code> variable of the
+<code>sir_data</code> object will be taken as observations.</p>
+<p>The time dimension (or column, if a data frame) in the passed
+<code>init</code>, <code>input</code> and/or <code>obs</code> files can
+be specified using the <code>time_dim</code> option. If this is not
+given, it will be assumed to be <code>time</code>, if such a dimension
+exists or, if not, any numeric column not called <code>value</code> (or
+the contents of the <code>value_column</code> option). If this does not
+produce a unique column name, an error will be thrown. All other
+dimensions/columns in the passed options will be interpreted as
+additional dimensions in the data, and stored in the <code>dims</code>
+field of the <code>libbi</code> object.</p>
+<p>Any other options (apart from <code>log_file_name</code>, see the <a href="#debugging">Debugging</a> section) will be passed on to the
+command <code>libbi</code> – for a complete list, see the <a href="https://libbi.org/docs/LibBi-Manual.pdf">LibBi manual</a>. Hyphens
+can be replaced by underscores so as not to confuse R (see
+<code>end_time</code>). Any arguments starting with
+<code>enable</code>/<code>disable</code> can be specified as boolean
+(e.g., <code>assert=TRUE</code>). Any <code>dry-</code> options can be
+specified with a <code>&quot;dry&quot;</code> argument, e.g.,
+<code>parse=&quot;dry&quot;</code>.</p>
+</div>
+<div id="analysing-an-mcmc-run" class="section level1">
+<h1>Analysing an MCMC run</h1>
+<p>Let’s get the results of the preceding <code>sample</code>
+command:</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="fu">bi_contents</span>(bi)</span>
+<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a>posterior <span class="ot">&lt;-</span> <span class="fu">bi_read</span>(bi)</span>
+<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a><span class="fu">str</span>(posterior)</span></code></pre></div>
+<p>We can see that this has two more objects than previously when we
+specified <code>target=&quot;prior&quot;</code>: <code>loglikelihood</code> (the
+estimated log-likelihood of the parameters at each MCMC step) and
+<code>logprior</code> (the estimated log-prior density of the parameters
+at each MCMC step).</p>
+<p>To get a summary of the parameters sampled, use</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="fu">summary</span>(bi)</span></code></pre></div>
+<p>A summary of sampled trajectories can be obtained using</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="fu">summary</span>(bi, <span class="at">type =</span> <span class="st">&quot;state&quot;</span>)</span></code></pre></div>
+<p>Any particular posterior sample can be viewed with
+<code>extract_sample</code> (with indices running from 0 to
+<code>nsamples - 1</code>):</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a><span class="fu">extract_sample</span>(bi, <span class="dv">314</span>)</span></code></pre></div>
+<p>To analyse MCMC outputs, we can use the <strong>coda</strong> package
+and the <code>get_traces</code> function of <strong>rbi</strong>. Note
+that, to get exactly the same traces, you would have to set the seed as
+above.</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;coda&quot;</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a>traces <span class="ot">&lt;-</span> <span class="fu">mcmc</span>(<span class="fu">get_traces</span>(bi))</span></code></pre></div>
+<p>We can, for example, visualise parameter traces and densities
+with</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="fu">plot</span>(traces)</span></code></pre></div>
+<p>Compare this to the marginal posterior distributions to the “correct”
+parameters used to generate the data set:</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="fu">bi_read</span>(sir_data, <span class="at">type =</span> <span class="st">&quot;param&quot;</span>)</span></code></pre></div>
+<p>For more details on using <strong>coda</strong> to further analyse
+the chains, see the website of the <a href="https://cran.r-project.org/package=coda">coda package</a>. For
+more plotting functionality, the <a href="https://cran.r-project.org/package=ggmcmc">ggmcmc package</a> is
+also worth considering.</p>
+</div>
+<div id="predictions" class="section level1">
+<h1>Predictions</h1>
+<p>We can use the <code>predict</code> function to re-simulate the
+fitted model using the estimated parameters, that is to generate samples
+from <span class="math inline">\(p(x_t|\theta)\)</span> where the <span class="math inline">\(\theta\)</span> are distributed according to the
+marginal posterior distribution <span class="math inline">\(p(\theta|y^*_t)\)</span> (here: <span class="math inline">\(\theta\)</span> are fixed parameters, <span class="math inline">\(x_t\)</span> are state trajectories and <span class="math inline">\(y^*_t\)</span> observed data points, as in the <a href="https://libbi.org/docs/LibBi-Manual.pdf">LibBi manual</a>). This
+can be useful, for example, for comparing typical model trajectories to
+the data, or for running the model beyond the last data point.</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" tabindex="-1"></a>pred_bi <span class="ot">&lt;-</span> <span class="fu">predict</span>(</span>
+<span id="cb37-2"><a href="#cb37-2" tabindex="-1"></a>  bi, <span class="at">start_time =</span> <span class="dv">0</span>, <span class="at">end_time =</span> <span class="dv">20</span> <span class="sc">*</span> <span class="dv">7</span>, <span class="at">output_every =</span> <span class="dv">7</span>,</span>
+<span id="cb37-3"><a href="#cb37-3" tabindex="-1"></a>  <span class="at">with =</span> <span class="fu">c</span>(<span class="st">&quot;transform-obs-to-state&quot;</span>)</span>
+<span id="cb37-4"><a href="#cb37-4" tabindex="-1"></a>)</span></code></pre></div>
+<p>where <code>with=c(&quot;transform-obs-to-state&quot;)</code> tells LibBi to
+treat observations as a state variable, that is to randomly generate
+observations, i.e. samples from <span class="math inline">\(p(y_t|\theta)\)</span> where, again, <span class="math inline">\(\theta\)</span> are distributed according to the
+posterior distribution <span class="math inline">\(p(\theta|y^*_t)\)</span> (see the
+<code>with-transform-obs-to-state</code> option in the <a href="https://libbi.org/docs/LibBi-Manual.pdf">LibBi manual</a>).</p>
+</div>
+<div id="sample-observations" class="section level1">
+<h1>Sample observations</h1>
+<p>To sample observations from sampled posterior state trajectories,
+that is samples from <span class="math inline">\(p(y_t|x_t)\)</span>
+where the <span class="math inline">\(x_t\)</span> are distributed
+according to the posterior distribution <span class="math inline">\(p(x_t | y_t)\)</span>, you can use.</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a>obs_bi <span class="ot">&lt;-</span> <span class="fu">sample_obs</span>(bi)</span></code></pre></div>
+<p>Compare this to the data:</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a><span class="fu">summary</span>(obs_bi, <span class="at">type =</span> <span class="st">&quot;obs&quot;</span>)</span>
+<span id="cb39-2"><a href="#cb39-2" tabindex="-1"></a>dataset<span class="sc">$</span>Incidence</span></code></pre></div>
+</div>
+<div id="filtering" class="section level1">
+<h1>Filtering</h1>
+<p>The other so-called clients of LibBi (besides <code>sample</code>)
+are supported through commands of the same name: `filter, optimise and
+rewrite. For example, to run a particle filter on the last posterior
+sample generated above, you can use:</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a>bi_filtered <span class="ot">&lt;-</span> <span class="fu">filter</span>(bi)</span></code></pre></div>
+</div>
+<div id="plotting" class="section level1">
+<h1>Plotting</h1>
+<p>Output form LibBi runs can be visualised using standard R plotting
+routines or plotting packages such as <code>ggplot2</code>. The
+<code>summary</code> function can help with this. For example, to plot
+observations randomly generated from the posterior distribution of the
+parameters and compare them to the data we can use</p>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">summary</span>(pred_bi, <span class="at">type =</span> <span class="st">&quot;obs&quot;</span>)</span>
+<span id="cb41-2"><a href="#cb41-2" tabindex="-1"></a></span>
+<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;ggplot2&quot;</span>)</span>
+<span id="cb41-4"><a href="#cb41-4" tabindex="-1"></a><span class="fu">ggplot</span>(ps, <span class="fu">aes</span>(<span class="at">x =</span> time)) <span class="sc">+</span></span>
+<span id="cb41-5"><a href="#cb41-5" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> Median)) <span class="sc">+</span></span>
+<span id="cb41-6"><a href="#cb41-6" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> <span class="st">`</span><span class="at">1st Qu.</span><span class="st">`</span>, <span class="at">ymax =</span> <span class="st">`</span><span class="at">3rd Qu.</span><span class="st">`</span>), <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb41-7"><a href="#cb41-7" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">y =</span> value), dataset<span class="sc">$</span>Incidence, <span class="at">color =</span> <span class="st">&quot;darkred&quot;</span>) <span class="sc">+</span></span>
+<span id="cb41-8"><a href="#cb41-8" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">&quot;cases&quot;</span>)</span></code></pre></div>
+<p>where we have plotted the median fit as a black line, the
+interquartile range as a grey ribbon, and the data points as dark red
+dots. Compare this to observations randomly generated from the posterior
+distribution of trajectories:</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a>os <span class="ot">&lt;-</span> <span class="fu">summary</span>(obs_bi, <span class="at">type =</span> <span class="st">&quot;obs&quot;</span>)</span>
+<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a></span>
+<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a><span class="fu">ggplot</span>(os, <span class="fu">aes</span>(<span class="at">x =</span> time)) <span class="sc">+</span></span>
+<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> Median)) <span class="sc">+</span></span>
+<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> <span class="st">`</span><span class="at">1st Qu.</span><span class="st">`</span>, <span class="at">ymax =</span> <span class="st">`</span><span class="at">3rd Qu.</span><span class="st">`</span>), <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">y =</span> value), dataset<span class="sc">$</span>Incidence, <span class="at">color =</span> <span class="st">&quot;darkred&quot;</span>) <span class="sc">+</span></span>
+<span id="cb42-7"><a href="#cb42-7" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">&quot;cases&quot;</span>)</span></code></pre></div>
+</div>
+<div id="saving-and-loading-libbi-objects" class="section level1">
+<h1>Saving and loading <code>libbi</code> objects</h1>
+<p><strong>rbi</strong> provides its own versions of the
+<code>saveRDS</code> and <code>readRDS</code> functions called
+<code>save_libbi</code> and <code>read_libbi</code>. These make sure
+that all information (including any options, input, init and observation
+files) is stored in the object.</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" tabindex="-1"></a><span class="fu">save_libbi</span>(bi, <span class="st">&quot;bi.rds&quot;</span>)</span>
+<span id="cb43-2"><a href="#cb43-2" tabindex="-1"></a>bi <span class="ot">&lt;-</span> <span class="fu">read_libbi</span>(<span class="st">&quot;bi.rds&quot;</span>)</span>
+<span id="cb43-3"><a href="#cb43-3" tabindex="-1"></a>bi</span></code></pre></div>
+</div>
+<div id="creating-libbi-objects-from-previous-runs" class="section level1">
+<h1>Creating <code>libbi</code> objects from previous runs</h1>
+<p>To recreate a <code>libbi</code> object from a previous R session,
+use <code>attach_data</code>. For example, one could use the following
+code to get the acceptance rate for a <em>LibBi</em> run with a given
+output and model file:</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a>pz_run_output <span class="ot">&lt;-</span> <span class="fu">bi_read</span>(<span class="fu">system.file</span>(<span class="at">package =</span> <span class="st">&quot;rbi&quot;</span>, <span class="st">&quot;example_output.nc&quot;</span>))</span>
+<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a>pz_model_file <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="at">package =</span> <span class="st">&quot;rbi&quot;</span>, <span class="st">&quot;PZ.bi&quot;</span>)</span>
+<span id="cb44-3"><a href="#cb44-3" tabindex="-1"></a>pz_posterior <span class="ot">&lt;-</span> <span class="fu">attach_data</span>(<span class="fu">libbi</span>(pz_model_file), <span class="st">&quot;output&quot;</span>, pz_run_output)</span>
+<span id="cb44-4"><a href="#cb44-4" tabindex="-1"></a>traces <span class="ot">&lt;-</span> <span class="fu">mcmc</span>(<span class="fu">get_traces</span>(pz_posterior))</span>
+<span id="cb44-5"><a href="#cb44-5" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> <span class="fu">rejectionRate</span>(traces)</span>
+<span id="cb44-6"><a href="#cb44-6" tabindex="-1"></a>a</span></code></pre></div>
+</div>
+<div id="debugging" class="section level1">
+<h1>Debugging</h1>
+<p>For a general check of model syntax, the <code>rewrite</code> command
+is useful:</p>
+<div class="sourceCode" id="cb45"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" tabindex="-1"></a><span class="fu">rewrite</span>(sir_model)</span></code></pre></div>
+<p>This generates the internal representation of the model for LibBi. It
+doesn’t matter so much what this looks like, but it will throw an error
+if there is a problem. If <code>libbi</code> throws an error, it is best
+to investigate with <code>debug = TRUE</code>, and setting
+<code>working_folder</code> to a folder that one can then use for
+debugging. Output of the <code>libbi</code> call can be saved in a file
+using the <code>log_file_name</code> option (by default a temporary
+file).</p>
+</div>
+<div id="related-packages" class="section level1">
+<h1>Related packages</h1>
+<p><a href="https://github.com/sbfnk/rbi.helpers">rbi.helpers</a>
+contains higher-level methods to interact with <strong>LibBi</strong>,
+including methods for plotting the results of libbi runs and for
+adapting the proposal distribution and number of particles. For more
+information, see the <a href="http://sbfnk.github.io/rbi.helpers/articles/introduction.html">rbi.helpers
+vignette</a>.</p>
+</div>
+<div id="references" class="section level1">
+<h1>References</h1>
+<ul>
+<li>Murray, L.M. (2013). <a href="https://arxiv.org/abs/1306.3277">Bayesian state-space modelling on
+high-performance hardware using LibBi</a>.</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

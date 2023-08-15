@@ -2,14 +2,18 @@
 % Please edit documentation in R/bi_open.R
 \name{bi_open}
 \alias{bi_open}
-\title{Bi open}
+\title{Bi Open}
 \usage{
 bi_open(x, file = "output")
 }
 \arguments{
-\item{x}{either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output}
+\item{x}{either a path to a NetCDF file, or a NetCDF connection created using
+\code{nc_open}, or a \code{\link{libbi}} object from which to read the
+output}
 
-\item{file}{file to open (out of "input", "init", "obs", "output"), if \code{x} is given as a \code{libbi} object; by default, will read output file}
+\item{file}{file to open (out of "input", "init", "obs", "output"), if
+\code{x} is given as a \code{libbi} object; by default, will read output
+file}
 }
 \value{
 an open NetCDF connection
@@ -19,3 +23,4 @@ This function opens an NetCDF file
 The file can be specified as a string to the filepath, in which
 case a NetCDF connection is opened, or directly as a NetCDF connection.
 }
+\keyword{internal}

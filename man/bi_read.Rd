@@ -13,48 +13,48 @@ bi_read(
   file,
   missval_threshold,
   coord_dims = list(),
-  vector,
   thin,
   verbose = FALSE,
   clear_cache = FALSE,
   init_to_param = FALSE,
-  burn = 0,
-  missval.threshold,
-  init.to.param = FALSE
+  burn = 0
 )
 }
 \arguments{
-\item{x}{either a path to a NetCDF file, or a NetCDF connection created using \code{nc_open}, or a \code{\link{libbi}} object from which to read the output}
+\item{x}{either a path to a NetCDF file, or a NetCDF connection created using
+\code{nc_open}, or a \code{\link{libbi}} object from which to read the
+output}
 
 \item{vars}{variables to read; if not given, all will be read}
 
 \item{dims}{factors for dimensions}
 
-\item{model}{model file or a \code{bi_model} object (if \code{x} is not a \code{libbi} object)}
+\item{model}{model file or a \code{bi_model} object (if \code{x} is not a
+\code{libbi} object)}
 
-\item{type}{vector of types of variable to read (out of "param", "state", "noise", "obs"). This needs 'x' to be a \code{\link{libbi}} object or \code{model} to be specified}
+\item{type}{vector of types of variable to read (out of "param", "state",
+"noise", "obs"). This needs 'x' to be a \code{\link{libbi}} object or
+\code{model} to be specified}
 
-\item{file}{which file to read (if \code{x} is given as a \code{\link{libbi}} object): one of "output" (default), "init", "input", "obs"}
+\item{file}{which file to read (if \code{x} is given as a \code{\link{libbi}}
+object): one of "output" (default), "init", "input", "obs"}
 
 \item{missval_threshold}{upper threshold for the likelihood}
 
-\item{coord_dims}{any \code{coord} dimensions, given as a named list of character vectors, where each element corresponds to the variable of the same name, and the character vector are the \code{coord} dimensions}
-
-\item{vector}{deprecated; if TRUE, will return results as vectors, not data.frames}
+\item{coord_dims}{any \code{coord} dimensions, given as a named list of
+character vectors, where each element corresponds to the variable of the
+same name, and the character vector are the \code{coord} dimensions}
 
 \item{thin}{thinning (keep only 1/thin of samples)}
 
 \item{verbose}{if TRUE, will print variables as they are read}
 
-\item{clear_cache}{if TRUE, will clear the cache and re-read the file even if cached data exists}
+\item{clear_cache}{if TRUE, will clear the cache and re-read the file even if
+cached data exists}
 
 \item{init_to_param}{logical; if TRUE, convert states to initial values}
 
 \item{burn}{number of initial samples to discard; default: 0}
-
-\item{missval.threshold}{deprecated; use missval_threshold instead}
-
-\item{init.to.param}{deprecated; use init_to_param instead}
 }
 \value{
 a list of data frames and/or numbers that have been read
@@ -66,6 +66,6 @@ The file can be specified as a string to the filepath, in which
 case a NetCDF connection is opened, or directly as a NetCDF connection.
 }
 \examples{
-example_output_file <- system.file(package="rbi", "example_output.nc")
+example_output_file <- system.file(package = "rbi", "example_output.nc")
 d <- bi_read(example_output_file)
 }
