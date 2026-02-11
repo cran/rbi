@@ -64,13 +64,13 @@ libbi <- function(model, path_to_libbi, dims, use_cache = TRUE, ...) {
   dot_options <- list(...)
   if ("norun" %in% names(dot_options) && dot_options[["norun"]]) {
     new_obj$model <- model
-    return(new_obj)
+    new_obj
   } else {
-    return(do.call(
+    do.call(
       run.libbi, c(
         list(x = new_obj, model = model, client = character(0)), dot_options
       )
-    ))
+    )
   }
 }
 
@@ -314,13 +314,18 @@ run.libbi <- function(x, client, proposal = c("model", "prior"), model, fix,
   file_args <- intersect(names(args), file_types)
   ## assign file args to global options
   for (arg in file_args) x$options[[arg]] <- get(arg)
+  list_args <- file_args[vapply(x$options[file_args], is.list, logical(1))]
+  if (length(list_args) > 0) {
+    levels <- do.call(get_char_levels, x$options[list_args])
+    x$options[list_args] <- lapply(x$options[list_args], factorise, levels)
+  }
 
   if (x$run_flag && length(x$output_file_name) == 1 &&
-    file.exists(x$output_file_name)) {
+        file.exists(x$output_file_name)) {
     added_options <- option_list(new_options)
     init_file_given <-
       ("init" %in% file_args && !is.null(x$options[["init"]])) ||
-        "init-file" %in% names(added_options)
+      "init-file" %in% names(added_options)
     init_np_given <- "init-np" %in% names(added_options)
     init_given <- init_file_given || init_np_given
     if (missing(chain)) { ## if chain not specified, only chain if no init
@@ -341,7 +346,7 @@ run.libbi <- function(x, client, proposal = c("model", "prior"), model, fix,
         )
       }
       if ("target" %in% names(all_options) &&
-        all_options[["target"]] == "prediction") {
+            all_options[["target"]] == "prediction") {
         read_init <- bi_read(x, type = c("param", "state", "obs"))
         np_dims <- bi_dim_len(x$output_file_name, "np")
         x$options[["nsamples"]] <- floor(np_dims / x$thin)
@@ -505,7 +510,16 @@ run.libbi <- function(x, client, proposal = c("model", "prior"), model, fix,
             )
           )
         )
-      stop_msg <- paste0("LibBi terminated with \"", error_msg[1], "\".")
+      if (length(error_msg) == 0 || is.na(error_msg[1])) {
+        stop_msg <- paste0(
+          "LibBi terminated with exit code ", p$status, "."
+        )
+        if (nchar(p$stderr) > 0) {
+          stop_msg <- paste0(stop_msg, "\nstderr: ", p$stderr)
+        }
+      } else {
+        stop_msg <- paste0("LibBi terminated with \"", error_msg[1], "\".")
+      }
       if (length(x$log_file_name) > 0) {
         stop_msg <- paste0(
           stop_msg, "\nYou can view a full log using \"print_log('",
@@ -528,13 +542,13 @@ run.libbi <- function(x, client, proposal = c("model", "prior"), model, fix,
       x <- update(x)
       ## get original model back if it has been modified
       x$model <- save_model
-      return(x)
+      x
     }
   } else {
     ## if run from the constructor, just write the model and add all the options
     write_model(x)
     x$options <- all_options
-    return(x)
+    x
   }
 }
 
@@ -796,7 +810,7 @@ attach_data.libbi <- function(x, file, data, in_place = FALSE, append = FALSE,
       if (length(coord_dims) > 0) {
         for (coord_dim in names(coord_dims)) {
           if (!is.null(x$coord_dims[[coord_dim]]) &&
-            any(x$coord_dims[[coord_dim]] != coord_dims[[coord_dim]])) {
+                any(x$coord_dims[[coord_dim]] != coord_dims[[coord_dim]])) {
             warning(
               "Given coord dimension ", coord_dim,
               " will override a coord dimension of the same name in",
@@ -834,8 +848,8 @@ attach_data.libbi <- function(x, file, data, in_place = FALSE, append = FALSE,
   }
 
   if ((append || overwrite || "list" %in% class(data) ||
-       file %in% c("obs", "input")) &&
-    length(vars) > 0) {
+         file %in% c("obs", "input")) &&
+        length(vars) > 0) {
     write_opts <- list(filename = target_file_name, variables = vars)
     if (length(x$time_dim) == 0) {
       write_opts[["guess_time"]] <- TRUE
@@ -873,7 +887,7 @@ attach_data.libbi <- function(x, file, data, in_place = FALSE, append = FALSE,
     x$options[[paste0(file, "-file")]] <- target_file_name
     x$timestamp[[file]] <- file.mtime(target_file_name)
   }
-  return(x)
+  x
 }
 
 #' @export
@@ -1028,7 +1042,7 @@ read_libbi <- function(name, ...) {
 
   for (option in pass_options) {
     if (!(option %in% names(libbi_options)) &&
-      option %in% names(read_obj)) {
+          option %in% names(read_obj)) {
       libbi_options[[option]] <- read_obj[[option]]
     }
   }
@@ -1058,7 +1072,7 @@ read_libbi <- function(name, ...) {
 
   new_obj$supplement <- read_obj$supplement
 
-  return(new_obj)
+  new_obj
 }
 
 #' @export
@@ -1194,7 +1208,7 @@ summary.libbi <- function(object, type = c("param", "state", "noise", "obs"),
         na.rm = na.rm
       ))
     ), by = summarise_columns]
-    return(dt)
+    dt
   }))
   ## reorder table
   numeric_columns <- c(
@@ -1220,7 +1234,7 @@ summary.libbi <- function(object, type = c("param", "state", "noise", "obs"),
   )
   setDF(summary_table)
 
-  return(summary_table)
+  summary_table
 }
 
 #' @keywords internal
@@ -1247,7 +1261,7 @@ assert_files.libbi <- function(x, ...) {
     stop("The libbi object does not contain an output file.")
   } else {
     if ("output" %in% names(x$timestamp) &&
-      x$timestamp[["output"]] < file.mtime(x$output_file_name)) {
+          x$timestamp[["output"]] < file.mtime(x$output_file_name)) {
       stop(
         "Output file ", x$output_file_name,
         " has been modified since LibBi was run."
@@ -1259,7 +1273,7 @@ assert_files.libbi <- function(x, ...) {
     file_type <- sub("-file$", "", file_option)
     if (file.exists(x$options[[file_option]])) {
       if (file_type %in% names(x$timestamp) &&
-        x$timestamp[[file_type]] < file.mtime(x$options[[file_option]])) {
+            x$timestamp[[file_type]] < file.mtime(x$options[[file_option]])) {
         stop(
           file_type, " file ", x$options[[file_option]],
           " has been modified since LibBi was run. You can use",
@@ -1331,7 +1345,7 @@ sample_obs <- function(x, ...) {
     x$options[["without-transform-obs-to-state"]]
   pr$model <- x$model
 
-  return(pr)
+  pr
 }
 
 #' @export
@@ -1390,9 +1404,9 @@ logLik.libbi <- function(object, ...) {
   assert_files(object)
   res <- bi_read(object)
   if (is.vector(res$loglikelihood)) {
-    return(res$loglikelihood)
+    res$loglikelihood
   } else {
-    return(res$loglikelihood$value)
+    res$loglikelihood$value
   }
 }
 
@@ -1427,7 +1441,7 @@ update.libbi <- function(x, ...) {
       x$timestamp[["output"]] <- file.mtime(x$output_file_name)
     }
   }
-  return(x)
+  x
 }
 #' @export
 update.default <- function(x, ...) {
@@ -1450,5 +1464,5 @@ create_working_folder <- function(x) {
   reg.finalizer(x$.gc_env, function(env) {
     unlink(env$folder, recursive = TRUE)
   }, onexit = TRUE)
-  return(x)
+  x
 }
